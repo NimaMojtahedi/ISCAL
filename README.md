@@ -1,1 +1,2 @@
-# Intelligent Signal Classifier via Adaptive Learning (ISCAL)
+# ISCAL
+Intelligent Signal Classifier via Adaptive Learning

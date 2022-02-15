@@ -114,9 +114,10 @@ navbar = dbc.NavbarSimple(
         dbc.Row(
             [
 
-                #dbc.Col(html.H1("ISCAL", style={'margin-left': '0px',
-                 #       'color': '#003D7F', 'fontSize': 35, 'font-family': 'Garamond'})),
-                dbc.Col(html.A(html.Img(src=temp_ISCAL_font, height="40px"), id='for_dummy_use'), width="auto"),
+                # dbc.Col(html.H1("ISCAL", style={'margin-left': '0px',
+                #       'color': '#003D7F', 'fontSize': 35, 'font-family': 'Garamond'})),
+                dbc.Col(html.A(html.Img(src=temp_ISCAL_font,
+                        height="40px"), id='for_dummy_use'), width="auto"),
                 dbc.Col(dbc.Button("New Session", id="new-button",
                         size="sm"), width="auto"),
                 dbc.Col(html.Div(
@@ -172,13 +173,13 @@ navbar = dbc.NavbarSimple(
                         ),
                     ]
                 ), width="auto"),
-                
+
                 dbc.Col(dbc.Button("Save Scores", id="save-button",
                         size="sm"), width="auto"),
                 dbc.Col(dbc.Button("Save Project As...", id="save-project",
                         size="sm"), width="auto"),
-                        dbc.Col(dbc.Button("Open Project", id="open-project",
-                        size="sm"), width="auto"),
+                dbc.Col(dbc.Button("Open Project", id="open-project",
+                                   size="sm"), width="auto"),
                 dbc.Col(html.Div(
                     [
                         dbc.Button("Advanced",
@@ -621,6 +622,7 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
             event["key"] == "ArrowLeft") or score_value == 1 or score_value == 2 or score_value == 3
         if (pressed_key_condition and not off_canvas) or ((slider_live_value != slider_saved_value) and not off_canvas):
             print("section 2 keyboard")
+            pdb.set_trace()
             # read params
             epoch_index = params["epoch_index"][0]
             max_nr_epochs = params["max_possible_epochs"][0]
@@ -874,6 +876,10 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
         # update params
         params["input_file_path"] = filename
 
+        # create result path (for later)
+        params["result_path"] = os.path.join(
+            params["temp_save_path"], "ISCAL_Results")
+
         # start reading data header (output of the file is a dataframe)
         data_header = read_data_header(filename)
 
@@ -980,25 +986,25 @@ def toggle_disable(null_):
     return indx, new_placeholders_ddowns, values_ddowns, style_ddowns, indx, new_placeholders_mins, values_mins, style_mins, indx, new_placeholders_maxes, values_maxes, style_maxes
 
 # filtering components callback
-@ app.callback(Output('for_dummy_use', 'children'),
-[Input({'type': 'ddowns', 'index': ALL}, 'value'),
-Input({'type': 'mins', 'index': ALL}, 'value'),
-Input({'type': 'maxes', 'index': ALL}, 'value'),
-])
 
+
+@ app.callback(Output('for_dummy_use', 'children'),
+               [Input({'type': 'ddowns', 'index': ALL}, 'value'),
+                Input({'type': 'mins', 'index': ALL}, 'value'),
+                Input({'type': 'maxes', 'index': ALL}, 'value'),
+                ])
 # storing the filtering components to params
 def storing_to_params(ddowns, mins, maxes):
     params["selected_channel_ddowns"] = ddowns
     params["selected_channel_mins"] = mins
     params["selected_channel_maxes"] = maxes
-    
-    #@Nima: below prints show what they return
-    #print(params["selected_channel_ddowns"])
-    #print(params["selected_channel_mins"])
-    #print(params["selected_channel_maxes"])
-    
-    return dash.no_update
 
+    # @Nima: below prints show what they return
+    print(params["selected_channel_ddowns"])
+    print(params["selected_channel_mins"])
+    print(params["selected_channel_maxes"])
+
+    return dash.no_update
 
 
 # training ML
@@ -1086,35 +1092,36 @@ def train_indicator(live_slider):
 
 
 # save button (remain)
-"""
 @ app.callback(
-    Output("save-button", "children"),
-
-    [Input("save-button", "n_clicks"),
-     Input("input-file-loc", "data"),
-     Input("scoring-labels", "data")]
+    [Output("save-button", "children"),
+     Input("save-button", "n_clicks")]
 )
-def save_button(n_clicks, input_data_loc, scoring_results):
-    # test
+def save_button(n_clicks):
+
     if n_clicks:
+
         # first create a folder or make sure the folder exist
-        save_path = os.path.join(os.path.split(
-            input_data_loc)[0], "SleezyResults")
+        save_path = params["result_path"]
         os.makedirs(save_path, exist_ok=True)
 
         # saving scoring results
         #   1. reading as pandas dataframe
-        scoring_results = pd.read_json(scoring_results)
+        scoring_results = pd.Series(
+            params["scoring_labels"], index=params["scoring_labels"].keys())
 
         #   2. saving in any suitable format
         scoring_results.to_json(os.path.join(save_path, "score_results.json"))
+        time.sleep(.1)
+        print("saving scoring labels in .json format")
 
         scoring_results.to_csv(os.path.join(
             save_path, "score_results.csv"), index=False)
+        time.sleep(.1)
+        print("saving scoring labels in .csv format")
 
-        return "Save"
-    return "Save"
-"""
+        return dash.no_update
+    return dash.no_update
+
 
 # run app if it get called
 if __name__ == '__main__':
