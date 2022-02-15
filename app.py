@@ -117,8 +117,11 @@ navbar = dbc.NavbarSimple(
                 #dbc.Col(html.H1("ISCAL", style={'margin-left': '0px',
                  #       'color': '#003D7F', 'fontSize': 35, 'font-family': 'Garamond'})),
                 dbc.Col(html.A(html.Img(src=temp_ISCAL_font, height="40px"), id='for_dummy_use'), width="auto"),
-                dbc.Col(dbc.Button("New Session", id="new-button",
-                        size="sm"), width="auto"),
+                dbc.Col(dbc.Button(["New Session",
+                dbc.Badge("Beta", color="success", pill=True, text_color="white",
+                className="position-absolute top-0",
+                style = {"transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
+                )], id="new-button", size="sm"), width="auto"),
                 dbc.Col(html.Div(
                     [
                         dbc.Button("Import Data",
@@ -175,9 +178,15 @@ navbar = dbc.NavbarSimple(
                 
                 dbc.Col(dbc.Button("Save Scores", id="save-button",
                         size="sm"), width="auto"),
-                dbc.Col(dbc.Button("Save Project As...", id="save-project",
+                dbc.Col(dbc.Button(["Save Project As...", dbc.Badge("New", color="danger", pill=True, text_color="white",
+                className="position-absolute top-0",
+                style = {"transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
+                )], id="save-project",
                         size="sm"), width="auto"),
-                        dbc.Col(dbc.Button("Open Project", id="open-project",
+                        dbc.Col(dbc.Button(["Open Project",dbc.Badge("New", color="danger", pill=True, text_color="white",
+                className="position-absolute top-0",
+                style = {"transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
+                )], id="open-project",
                         size="sm"), width="auto"),
                 dbc.Col(html.Div(
                     [
