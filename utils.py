@@ -8,6 +8,7 @@ from json import JSONEncoder
 from joblib import Parallel, delayed
 import pandas as pd
 from sqlalchemy import create_engine
+from mne.filter import filter_data
 
 
 def IO():
@@ -310,7 +311,30 @@ def app_defaults():
                      "AI_trigger_param": None,
                      "confusion_matrix": None,
                      "slider_saved_value": None,
-                     "data_loaded":False,
+                     "data_loaded": False,
                      "print": "Loading app!"})
 
     return defaults
+
+
+def filter_signal(signal, sfreq=10, l_freq=0, h_freq=1):
+    """
+    This function as a part of preprocessing step
+    INPUTS,
+    signal --> 1 * n array 
+    s_freq --> sampling frequrncy
+    l_freq --> lower frequency for filter cut
+    h_freq --> upper frequency for filter cut 
+
+    OUTPUT,
+    filtered signal
+    """
+    # solve begginign and end issues
+    custom_sig = np.hstack([signal[::-1], signal, signal[::-1]])
+
+    # apply filter
+    filtered_signal = filter_data(custom_sig,
+                                  sfreq=sfreq,
+                                  l_freq=l_freq,
+                                  h_freq=h_freq)
+    return filtered_signal[len(signal): 2*len(signal)]
