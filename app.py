@@ -39,6 +39,7 @@ from plotly.subplots import make_subplots
 
 # university logo path
 University_Logo = "https://upload.wikimedia.org/wikipedia/de/9/97/Eberhard_Karls_Universit%C3%A4t_T%C3%BCbingen.svg"
+temp_ISCAL_font = "https://see.fontimg.com/api/renderfont4/q341/eyJyIjoiZnMiLCJoIjoyMDAsInciOjEwMDAsImZzIjoyMDAsImZnYyI6IiMxMzJFODMiLCJiZ2MiOiIjRkZGRkZGIiwidCI6MX0/SVNDQUw/rapscallion.png"
 
 
 # storage default params
@@ -113,13 +114,14 @@ navbar = dbc.NavbarSimple(
         dbc.Row(
             [
 
-                dbc.Col(html.H1("ISCAL", style={'margin-left': '100px',
-                        'color': '#003D7F', 'fontSize': 35})),
-
-
+                #dbc.Col(html.H1("ISCAL", style={'margin-left': '0px',
+                 #       'color': '#003D7F', 'fontSize': 35, 'font-family': 'Garamond'})),
+                dbc.Col(html.A(html.Img(src=temp_ISCAL_font, height="40px"), id='for_dummy_use'), width="auto"),
+                dbc.Col(dbc.Button("New Session", id="new-button",
+                        size="sm"), width="auto"),
                 dbc.Col(html.Div(
                     [
-                        dbc.Button("Import",
+                        dbc.Button("Import Data",
                                    id="import-offcanvas-button", size="sm", n_clicks=0),
                         dbc.Offcanvas(children=[
 
@@ -170,8 +172,12 @@ navbar = dbc.NavbarSimple(
                         ),
                     ]
                 ), width="auto"),
-
-                dbc.Col(dbc.Button("Export", id="save-button",
+                
+                dbc.Col(dbc.Button("Save Scores", id="save-button",
+                        size="sm"), width="auto"),
+                dbc.Col(dbc.Button("Save Project As...", id="save-project",
+                        size="sm"), width="auto"),
+                        dbc.Col(dbc.Button("Open Project", id="open-project",
                         size="sm"), width="auto"),
                 dbc.Col(html.Div(
                     [
@@ -204,7 +210,7 @@ navbar = dbc.NavbarSimple(
                     ]
                 ), width="auto"),
                 dbc.Col(html.A(dbc.Button("About Us", id="about-us-button", size="sm"), href="http://www.physiologie2.uni-tuebingen.de/", target="_blank"),
-                        width="auto", style={'margin-left': '300px'}),
+                        width="auto", style={'margin-left': '50px'}),
                 dbc.Col(html.A(dbc.Button("Help", id="help-button", size="sm"),
                         href="https://github.com/NimaMojtahedi/Automatic-sleep-EEG-scoring", target="_blank"), width="auto"),
                 dbc.Col(html.A(html.Img(src=University_Logo, height="40px"),
@@ -973,6 +979,27 @@ def toggle_disable(null_):
         values_maxes = ''
     return indx, new_placeholders_ddowns, values_ddowns, style_ddowns, indx, new_placeholders_mins, values_mins, style_mins, indx, new_placeholders_maxes, values_maxes, style_maxes
 
+# filtering components callback
+@ app.callback(Output('for_dummy_use', 'children'),
+[Input({'type': 'ddowns', 'index': ALL}, 'value'),
+Input({'type': 'mins', 'index': ALL}, 'value'),
+Input({'type': 'maxes', 'index': ALL}, 'value'),
+])
+
+# storing the filtering components to params
+def storing_to_params(ddowns, mins, maxes):
+    params["selected_channel_ddowns"] = ddowns
+    params["selected_channel_mins"] = mins
+    params["selected_channel_maxes"] = maxes
+    
+    #@Nima: below prints show what they return
+    #print(params["selected_channel_ddowns"])
+    #print(params["selected_channel_mins"])
+    #print(params["selected_channel_maxes"])
+    
+    return dash.no_update
+
+
 
 # training ML
 @ app.callback(
@@ -1059,7 +1086,7 @@ def train_indicator(live_slider):
 
 
 # save button (remain)
-
+'''
 @ app.callback(
     Output("save-button", "children"),
 
@@ -1087,7 +1114,7 @@ def save_button(n_clicks, input_data_loc, scoring_results):
 
         return "Save"
     return "Save"
-
+'''
 
 # run app if it get called
 if __name__ == '__main__':
