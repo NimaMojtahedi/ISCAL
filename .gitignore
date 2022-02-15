@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# custom folder
+temp_saves/
+
+# custom files
+exp.edf
