@@ -1059,7 +1059,7 @@ def train_indicator(live_slider):
 
 
 # save button (remain)
-
+"""
 @ app.callback(
     Output("save-button", "children"),
 
@@ -1087,7 +1087,7 @@ def save_button(n_clicks, input_data_loc, scoring_results):
 
         return "Save"
     return "Save"
-
+"""
 
 # run app if it get called
 if __name__ == '__main__':
