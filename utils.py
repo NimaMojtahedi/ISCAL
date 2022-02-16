@@ -301,6 +301,7 @@ def app_defaults():
                      "selected_channel_ddowns": [''],
                      "selected_channel_mins": [''],
                      "selected_channel_maxes": [''],
+                     "transition": False,
                      "input_file_info": None,
                      "pressed_key": None,
                      "downsample": [5],

@@ -58,14 +58,16 @@ pd.DataFrame(params).to_json(os.path.join(
 
 
 # define channels & dropdowns
-def define_channels(channel_name=["No Channel in Data"], disabled=False, value=None):
+def define_channels(channel_name=["N"], disabled=False, value=None, dd_value=[''], mins_value=[''], maxes_value=[''], transition=False):
     options = []
     dropdowns = []
     mins = []
     maxes = []
     if isinstance(channel_name[0], list):
         channel_name = channel_name[0]
-
+    
+    params["transition"] = transition
+    
     for nr, i in enumerate(channel_name):
         options.append({'label': i, 'value': i, 'disabled': disabled})
         dropdowns.append(dbc.Select(
@@ -76,15 +78,16 @@ def define_channels(channel_name=["No Channel in Data"], disabled=False, value=N
                 {"label": "Both!", "value": "bth"},
             ],
             id={"type": "ddowns", "index": nr},
-            disabled=True,
+            disabled=disabled,
             style={"width": "110px", 'filter': 'blur(150px)', 'opacity': '0'},
             class_name='mb-2',
             size="sm",
+            value=dd_value[nr]
         ))
-        mins.append(dbc.Input(placeholder="Min", size="sm", id={"type": "mins", "index": nr}, disabled=True,
+        mins.append(dbc.Input(placeholder="Min", value=mins_value[nr], size="sm", id={"type": "mins", "index": nr}, disabled=disabled,
                               style={"width": "80px", 'filter': 'blur(150px)', 'opacity': '0'}, class_name='mb-2', inputmode='numeric', type="number",
                               min=0, max=1000))
-        maxes.append(dbc.Input(placeholder="Max", size="sm", disabled=True,
+        maxes.append(dbc.Input(placeholder="Max", value=maxes_value[nr], size="sm", disabled=disabled,
                                style={"width": "80px", 'filter': 'blur(150px)', 'opacity': '0'}, class_name='mb-2', id={"type": "maxes", "index": nr},
                                inputmode='numeric', type="number", min=0, max=1000))
 
@@ -175,7 +178,7 @@ navbar = dbc.NavbarSimple(
                         ),
                     ]
                 ), width="auto"),
-                
+
                 dbc.Col(dbc.Button("Save Scores", id="save-button",
                         size="sm"), width="auto"),
                 dbc.Col(dbc.Button(["Save Project As...", dbc.Badge("New", color="danger", pill=True, text_color="white",
@@ -630,6 +633,7 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
             event["key"] == "ArrowLeft") or score_value == 1 or score_value == 2 or score_value == 3
         if (pressed_key_condition and not off_canvas) or ((slider_live_value != slider_saved_value) and not off_canvas):
             print("section 2 keyboard")
+            pdb.set_trace()
             # read params
             epoch_index = params["epoch_index"][0]
             max_nr_epochs = params["max_possible_epochs"][0]
@@ -866,7 +870,9 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
         print("load button action")
         n2 = n2 - 1
         channel_children = define_channels(
-            channel_name=params["initial_channels"], disabled=True, value=params["selected_channels"])
+            channel_name=params["initial_channels"], disabled=True, value=params["selected_channels"],
+            dd_value=params["selected_channel_ddowns"], mins_value=params["selected_channel_mins"],
+            maxes_value=params["selected_channel_maxes"], transition=False)
         secondary = True
         return dash.no_update, channel_children, "Loading...", dash.no_update, True, True, True, 0, 0, secondary, 1, 0, dash.no_update
 
@@ -883,15 +889,24 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
         # update params
         params["input_file_path"] = filename
 
+        # create result path (for later)
+        params["result_path"] = os.path.join(
+            params["temp_save_path"], "ISCAL_Results")
+
         # start reading data header (output of the file is a dataframe)
         data_header = read_data_header(filename)
 
         # update params
         params["initial_channels"] = data_header["channel_names"].values[0]
+        params["selected_channel_ddowns"] = [''] * len(params["initial_channels"])
+        params["selected_channel_mins"] = [''] * len(params["initial_channels"])
+        params["selected_channel_maxes"] = [''] * len(params["initial_channels"])
 
         # I need to run the define_channels function
         channel_children = define_channels(
-            channel_name=params["initial_channels"], disabled=False, value=[])
+            channel_name=params["initial_channels"], disabled=False, value=[],
+            dd_value=params["selected_channel_ddowns"], mins_value=params["selected_channel_mins"],
+            maxes_value=params["selected_channel_maxes"], transition=True)
 
         # button canvas, input-data-path, save-path, channel name, save-data-header
         return True, channel_children, "Load", dash.no_update, False, False, False, n1, n2, dash.no_update, dash.no_update, dash.no_update, dash.no_update
@@ -925,7 +940,6 @@ def handle_sample_fr_input(value):
     Input("channel_checklist", "value")
 )
 def get_channel_user_selection(channels):
-    # pdb.set_trace()
     if not channels is None:
         try:
             main_channel_list = params["initial_channels"]
@@ -960,54 +974,60 @@ def get_channel_user_selection(channels):
      Output({'type': 'maxes', 'index': ALL}, 'placeholder'),
      Output({'type': 'maxes', 'index': ALL}, 'value'),
      Output({'type': 'maxes', 'index': ALL}, 'style'), ],
-    Input("channel_checklist", "value")  # we don't use it
+    Input("channel_checklist", "value")  # we don't use it!
 )
 def toggle_disable(null_):
     indx = params["selected_channel_indices"]
-    try:
-        new_placeholders_ddowns = ['N/A' if i else 'Select' for i in indx]
-        values_ddowns = ['' if i else dash.no_update for i in indx]
-        style_ddowns = [{'width': '110px', 'filter': 'blur(50px)', 'transition': 'all 0.3s ease-out', 'opacity': '0'} if i else {
-            'width': '110px', 'filter': 'blur(0px)', 'transition': 'all 0.3s ease-in', 'opacity': '100'} for i in indx]
-        # in case we decide to change placeholders in the future
-        new_placeholders_mins = ['Min' if i else 'Min' for i in indx]
-        values_mins = ['' if i else dash.no_update for i in indx]
-        style_mins = [{'width': '80px', 'filter': 'blur(50px)', 'transition': 'all 0.3s ease-out', 'opacity': '0'} if i else {
-            'width': '80px', 'filter': 'blur(0px)', 'transition': 'all 0.3s ease-in', 'opacity': '100'} for i in indx]
-        # in case we decide to change placeholders in the future
-        new_placeholders_maxes = ['Max' if i else 'Max' for i in indx]
-        values_maxes = ['' if i else dash.no_update for i in indx]
-        style_maxes = [{'width': '80px', 'filter': 'blur(50px)', 'transition': 'all 0.3s ease-out', 'opacity': '0'} if i else {
-            'width': '80px', 'filter': 'blur(0px)', 'transition': 'all 0.3s ease-in', 'opacity': '100'} for i in indx]
-    except:
-        new_placeholders_ddowns = ''
-        values_ddowns = ''
-        new_placeholders_mins = ''
-        values_mins = ''
-        new_placeholders_maxes = ''
-        values_maxes = ''
-    return indx, new_placeholders_ddowns, values_ddowns, style_ddowns, indx, new_placeholders_mins, values_mins, style_mins, indx, new_placeholders_maxes, values_maxes, style_maxes
+    #indx = [not i for i in indx]
+    if params["transition"] == True:
+        try:
+            new_placeholders_ddowns = ['N/A' if i else 'Select' for i in indx]
+            values_ddowns = ['' if i else dash.no_update for i in indx]
+            style_ddowns = [{'width': '110px', 'filter': 'blur(50px)', 'transition': 'all 0.3s ease-out', 'opacity': '0'} if i else {
+                'width': '110px', 'filter': 'blur(0px)', 'transition': 'all 0.3s ease-in', 'opacity': '100'} for i in indx]
+            # in case we decide to change placeholders in the future
+            new_placeholders_mins = ['Min' if i else 'Min' for i in indx]
+            values_mins = ['' if i else dash.no_update for i in indx]
+            style_mins = [{'width': '80px', 'filter': 'blur(50px)', 'transition': 'all 0.3s ease-out', 'opacity': '0'} if i else {
+                'width': '80px', 'filter': 'blur(0px)', 'transition': 'all 0.3s ease-in', 'opacity': '100'} for i in indx]
+            # in case we decide to change placeholders in the future
+            new_placeholders_maxes = ['Max' if i else 'Max' for i in indx]
+            values_maxes = ['' if i else dash.no_update for i in indx]
+            style_maxes = [{'width': '80px', 'filter': 'blur(50px)', 'transition': 'all 0.3s ease-out', 'opacity': '0'} if i else {
+                'width': '80px', 'filter': 'blur(0px)', 'transition': 'all 0.3s ease-in', 'opacity': '100'} for i in indx]
+        except:
+            new_placeholders_ddowns = ''
+            values_ddowns = ''
+            new_placeholders_mins = ''
+            values_mins = ''
+            new_placeholders_maxes = ''
+            values_maxes = ''
+        return indx, new_placeholders_ddowns, values_ddowns, style_ddowns, indx, new_placeholders_mins, values_mins, style_mins, indx, new_placeholders_maxes, values_maxes, style_maxes
+    
+    else:
+        off_indx = [False] * len(indx)
+        same_style = [dash.no_update] * len(indx)
+        return off_indx, params["selected_channel_ddowns"], params["selected_channel_ddowns"], same_style, off_indx, params["selected_channel_mins"], params["selected_channel_mins"], same_style, off_indx, params["selected_channel_maxes"], params["selected_channel_maxes"], same_style
+
 
 # filtering components callback
 @ app.callback(Output('for_dummy_use', 'children'),
-[Input({'type': 'ddowns', 'index': ALL}, 'value'),
-Input({'type': 'mins', 'index': ALL}, 'value'),
-Input({'type': 'maxes', 'index': ALL}, 'value'),
-])
-
+               [Input({'type': 'ddowns', 'index': ALL}, 'value'),
+                Input({'type': 'mins', 'index': ALL}, 'value'),
+                Input({'type': 'maxes', 'index': ALL}, 'value'),
+                ])
 # storing the filtering components to params
 def storing_to_params(ddowns, mins, maxes):
     params["selected_channel_ddowns"] = ddowns
     params["selected_channel_mins"] = mins
     params["selected_channel_maxes"] = maxes
-    
-    #@Nima: below prints show what they return
-    #print(params["selected_channel_ddowns"])
-    #print(params["selected_channel_mins"])
-    #print(params["selected_channel_maxes"])
-    
-    return dash.no_update
 
+    # @Nima: below prints show what they return
+    print(params["selected_channel_ddowns"])
+    print(params["selected_channel_mins"])
+    print(params["selected_channel_maxes"])
+
+    return dash.no_update
 
 
 # training ML
@@ -1095,35 +1115,36 @@ def train_indicator(live_slider):
 
 
 # save button (remain)
-"""
 @ app.callback(
-    Output("save-button", "children"),
-
-    [Input("save-button", "n_clicks"),
-     Input("input-file-loc", "data"),
-     Input("scoring-labels", "data")]
+    [Output("save-button", "children"),
+     Input("save-button", "n_clicks")]
 )
-def save_button(n_clicks, input_data_loc, scoring_results):
-    # test
+def save_button(n_clicks):
+
     if n_clicks:
+
         # first create a folder or make sure the folder exist
-        save_path = os.path.join(os.path.split(
-            input_data_loc)[0], "SleezyResults")
+        save_path = params["result_path"]
         os.makedirs(save_path, exist_ok=True)
 
         # saving scoring results
         #   1. reading as pandas dataframe
-        scoring_results = pd.read_json(scoring_results)
+        scoring_results = pd.Series(
+            params["scoring_labels"], index=params["scoring_labels"].keys())
 
         #   2. saving in any suitable format
         scoring_results.to_json(os.path.join(save_path, "score_results.json"))
+        time.sleep(.1)
+        print("saving scoring labels in .json format")
 
         scoring_results.to_csv(os.path.join(
             save_path, "score_results.csv"), index=False)
+        time.sleep(.1)
+        print("saving scoring labels in .csv format")
 
-        return "Save"
-    return "Save"
-"""
+        return dash.no_update
+    return dash.no_update
+
 
 # run app if it get called
 if __name__ == '__main__':
