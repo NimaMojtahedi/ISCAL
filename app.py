@@ -418,9 +418,24 @@ def graph_channels(traces, names='Null Channel', downsamples=params["downsample"
                           paper_bgcolor='rgba(0,0,0,0)',
                           plot_bgcolor='rgba(0,0,0,0)',
                           showlegend=False,
-                          xaxis_fixedrange=True,
+                          xaxis = dict(fixedrange= True)
                           )
-        fig['layout'].update({'yaxis{}'.format(i+1): dict(title=names[i])})
+        fig['layout'].update({'yaxis{}'.format(i+1): dict(
+        anchor="free",
+        automargin=False,
+        position=0.04,
+        #for future manual scaling of y axis
+        #autorange=False,
+        title_text='<b>'+names[i]+'</b>', title_standoff = 35)})
+
+        fig['layout'].update({'xaxis{}'.format(i+1): dict(tickmode= 'array',
+        tickvals= [int(params['epoch_length'][0])/int(params["downsample"][0]),
+        2*int(params['epoch_length'][0])/int(params["downsample"][0])],
+        ticktext= ['{} sec'.format(int(params['epoch_length'][0])),
+        '{} sec'.format(int(params['epoch_length'][0])*2)],
+        #rangemode="tozero",
+        )})
+
     return fig
 
 
@@ -633,7 +648,7 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
             event["key"] == "ArrowLeft") or score_value == 1 or score_value == 2 or score_value == 3
         if (pressed_key_condition and not off_canvas) or ((slider_live_value != slider_saved_value) and not off_canvas):
             print("section 2 keyboard")
-            pdb.set_trace()
+            #pdb.set_trace()
             # read params
             epoch_index = params["epoch_index"][0]
             max_nr_epochs = params["max_possible_epochs"][0]
@@ -782,7 +797,7 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
                     data_right])
 
             print("Enjoy scoring!")
-            return graph_channels(full_trace.T), graph_hs_ps(full_ps_hist), 0, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+            return graph_channels(full_trace.T, names=params["selected_channels"]), graph_hs_ps(full_ps_hist, names=params["selected_channels"]), 0, dash.no_update, dash.no_update, dash.no_update, dash.no_update
         else:
             print("Keyboard first launch")
             return graph_channels(np.zeros((1000, 1))), graph_hs_ps([np.zeros((1000, 1)), np.zeros((1000, 1))]), 0, dash.no_update, dash.no_update, dash.no_update, dash.no_update
@@ -1005,9 +1020,11 @@ def toggle_disable(null_):
         return indx, new_placeholders_ddowns, values_ddowns, style_ddowns, indx, new_placeholders_mins, values_mins, style_mins, indx, new_placeholders_maxes, values_maxes, style_maxes
     
     else:
-        off_indx = [False] * len(indx)
-        same_style = [dash.no_update] * len(indx)
-        return off_indx, params["selected_channel_ddowns"], params["selected_channel_ddowns"], same_style, off_indx, params["selected_channel_mins"], params["selected_channel_mins"], same_style, off_indx, params["selected_channel_maxes"], params["selected_channel_maxes"], same_style
+        off_indx = [True] * len(indx)
+        dd_style = [{'width': '110px', 'filter': 'blur(0px)', 'opacity': '0'}  if i else {'width': '110px', 'filter': 'blur(0px)', 'opacity': '100'} for i in indx]
+        min_max_style = [{'width': '80px', 'filter': 'blur(0px)', 'opacity': '0'}  if i else {'width': '80px', 'filter': 'blur(0px)', 'opacity': '100'} for i in indx]
+        #same_style = [{'width': '80px', 'filter': 'blur(0px)', 'opacity': '100'}] * len(indx)
+        return off_indx, params["selected_channel_ddowns"], params["selected_channel_ddowns"], dd_style, off_indx, params["selected_channel_mins"], params["selected_channel_mins"], min_max_style, off_indx, params["selected_channel_maxes"], params["selected_channel_maxes"], min_max_style
 
 
 # filtering components callback
