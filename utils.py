@@ -130,12 +130,51 @@ def check_installed_packages():
 
 
 # read large eeg data and chunk it to epochs in the dictionary format
-def process_input_data(path_to_file, path_to_save, start_index, end_index, epoch_len, fr, channel_list, downsample=5, return_result=False):
+def process_input_data(params, start_index, end_index, return_result=False):
 
     # Getting the path and loading data using mne.io.read_raw (it automatically
     # detect file ext.)
+
+    # initializing param
+    path_to_file = params["input_file_path"]
+    path_to_save = params["temp_save_path"]
+    epoch_len = params["epoch_length"][0]
+    fr = params["sampling_fr"][0]
+    all_channels = params["initial_channels"]
+    channel_list = params["selected_channels"]
+    downsample = params["downsample"][0]
+    filter_ddowns = params["selected_channel_ddowns"]
+    min_fr_filters = params["selected_channel_mins"]
+    max_fr_filters = params["selected_channel_maxes"]
+
     print("reading data")
-    info = IO().read_raw(path_to_file)
+    info = IO().read_raw(path_to_file, preload=True)
+
+    # apply filters  if they exist
+    for i, filt_type in enumerate(filter_ddowns):
+        if filt_type == "flt" and (min_fr_filters[i] != "") and (max_fr_filters[i] != ""):
+            info.filter(
+                l_freq=min_fr_filters[i], h_freq=max_fr_filters[i], picks=all_channels[i])
+            info.rename_channels(
+                {all_channels[i]: f"{all_channels[i]}_filtered"})
+
+            replace_index = [qq for qq, ch_name in enumerate(
+                channel_list) if ch_name == all_channels[i]]
+            channel_list[replace_index[0]] = f"{all_channels[i]}_filtered"
+
+        elif filt_type == "bth" and (min_fr_filters[i] != "") and (max_fr_filters[i] != ""):
+            temp_channel = []
+            temp_channel = info.copy().pick_channels([all_channels[i]])
+            temp_channel.rename_channels(
+                {all_channels[i]: f"{all_channels[i]}_filtered"})
+            info.add_channels([temp_channel])
+            info.filter(
+                l_freq=min_fr_filters[i], h_freq=max_fr_filters[i], picks=f"{all_channels[i]}_filtered")
+
+            channel_list.append(f"{all_channels[i]}_filtered")
+
+    # update params
+    params["selected_channels"] = channel_list
 
     # loading data to memory
     if channel_list:
@@ -171,7 +210,7 @@ def process_input_data(path_to_file, path_to_save, start_index, end_index, epoch
     # spectrums = spectrum * n_ch --> power spectrum of signals
     print("Running step 1.")
     my_dict = [{"data": data[i*num_sample_per_epoch: (i + 1) * num_sample_per_epoch],
-                "epoch_index":i} for i in range(num_of_epoch - 1)]
+                "epoch_index": i} for i in range(num_of_epoch - 1)]
 
     print("Running step 2.")
     print("Down sampling for presentation!")
@@ -192,7 +231,7 @@ def process_input_data(path_to_file, path_to_save, start_index, end_index, epoch
             spectrums.append(FE.power_spec(keep_f=30))  # at the moment fix 30
 
         # add down sampling (5) after feature eng.
-        temp_data = temp_data[::downsample, :]
+        temp_data = temp_data[:: downsample, :]
 
         # load calculation to dictionary
         dict_.update({"histograms": hists,
@@ -316,26 +355,3 @@ def app_defaults():
                      "print": "Loading app!"})
 
     return defaults
-
-
-def filter_signal(signal, sfreq=10, l_freq=0, h_freq=1):
-    """
-    This function as a part of preprocessing step
-    INPUTS,
-    signal --> 1 * n array 
-    s_freq --> sampling frequrncy
-    l_freq --> lower frequency for filter cut
-    h_freq --> upper frequency for filter cut 
-
-    OUTPUT,
-    filtered signal
-    """
-    # solve begginign and end issues
-    custom_sig = np.hstack([signal[::-1], signal, signal[::-1]])
-
-    # apply filter
-    filtered_signal = filter_data(custom_sig,
-                                  sfreq=sfreq,
-                                  l_freq=l_freq,
-                                  h_freq=h_freq)
-    return filtered_signal[len(signal): 2*len(signal)]
