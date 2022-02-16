@@ -65,9 +65,9 @@ def define_channels(channel_name=["N"], disabled=False, value=None, dd_value=[''
     maxes = []
     if isinstance(channel_name[0], list):
         channel_name = channel_name[0]
-    
+
     params["transition"] = transition
-    
+
     for nr, i in enumerate(channel_name):
         options.append({'label': i, 'value': i, 'disabled': disabled})
         dropdowns.append(dbc.Select(
@@ -117,14 +117,16 @@ navbar = dbc.NavbarSimple(
         dbc.Row(
             [
 
-                #dbc.Col(html.H1("ISCAL", style={'margin-left': '0px',
-                 #       'color': '#003D7F', 'fontSize': 35, 'font-family': 'Garamond'})),
-                dbc.Col(html.A(html.Img(src=temp_ISCAL_font, height="40px"), id='for_dummy_use'), width="auto"),
+                # dbc.Col(html.H1("ISCAL", style={'margin-left': '0px',
+                #       'color': '#003D7F', 'fontSize': 35, 'font-family': 'Garamond'})),
+                dbc.Col(html.A(html.Img(src=temp_ISCAL_font,
+                        height="40px"), id='for_dummy_use'), width="auto"),
                 dbc.Col(dbc.Button(["New Session",
-                dbc.Badge("Beta", color="success", pill=True, text_color="white",
-                className="position-absolute top-0",
-                style = {"transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
-                )], id="new-button", size="sm"), width="auto"),
+                                    dbc.Badge("Beta", color="success", pill=True, text_color="white",
+                                              className="position-absolute top-0",
+                                              style={
+                                                  "transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
+                                              )], id="new-button", size="sm"), width="auto"),
                 dbc.Col(html.Div(
                     [
                         dbc.Button("Import Data",
@@ -182,15 +184,17 @@ navbar = dbc.NavbarSimple(
                 dbc.Col(dbc.Button("Save Scores", id="save-button",
                         size="sm"), width="auto"),
                 dbc.Col(dbc.Button(["Save Project As...", dbc.Badge("New", color="danger", pill=True, text_color="white",
-                className="position-absolute top-0",
-                style = {"transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
-                )], id="save-project",
-                        size="sm"), width="auto"),
-                        dbc.Col(dbc.Button(["Open Project",dbc.Badge("New", color="danger", pill=True, text_color="white",
-                className="position-absolute top-0",
-                style = {"transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
-                )], id="open-project",
-                        size="sm"), width="auto"),
+                                                                    className="position-absolute top-0",
+                                                                    style={
+                                                                        "transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
+                                                                    )], id="save-project",
+                                   size="sm"), width="auto"),
+                dbc.Col(dbc.Button(["Open Project", dbc.Badge("New", color="danger", pill=True, text_color="white",
+                                                              className="position-absolute top-0",
+                                                              style={
+                                                                  "transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
+                                                              )], id="open-project",
+                                   size="sm"), width="auto"),
                 dbc.Col(html.Div(
                     [
                         dbc.Button("Advanced",
@@ -644,11 +648,11 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
         slider_saved_value = params["slider_saved_value"]
         print("section 1 keyboard")
         # It is important False off_canvas /  # only in this case enter to this section (later more keys should come here)
-        pressed_key_condition = (event["key"] == "ArrowRight") or (
-            event["key"] == "ArrowLeft") or score_value == 1 or score_value == 2 or score_value == 3
+        pressed_key_condition = ((event["key"] == "ArrowRight") or (
+            event["key"] == "ArrowLeft") or score_value == 1 or score_value == 2 or score_value == 3) and params["data_loaded"]
         if (pressed_key_condition and not off_canvas) or ((slider_live_value != slider_saved_value) and not off_canvas):
             print("section 2 keyboard")
-            #pdb.set_trace()
+            # pdb.set_trace()
             # read params
             epoch_index = params["epoch_index"][0]
             max_nr_epochs = params["max_possible_epochs"][0]
@@ -865,15 +869,11 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
 
     if secondary == True and self_trigger == 1:
         secondary = False
+
         print("load button running")
-        max_epoch_nr = process_input_data(path_to_file=params["input_file_path"],
-                                          path_to_save=params["temp_save_path"],
+        max_epoch_nr = process_input_data(params=params,
                                           start_index=0,
                                           end_index=-1,
-                                          epoch_len=params["epoch_length"][0],
-                                          fr=params["sampling_fr"][0],
-                                          channel_list=params["selected_channels"],
-                                          downsample=params["downsample"][0],
                                           return_result=False)
         params["max_possible_epochs"] = [max_epoch_nr]
         params["data_loaded"] = True
@@ -913,9 +913,12 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
 
         # update params
         params["initial_channels"] = data_header["channel_names"].values[0]
-        params["selected_channel_ddowns"] = [''] * len(params["initial_channels"])
-        params["selected_channel_mins"] = [''] * len(params["initial_channels"])
-        params["selected_channel_maxes"] = [''] * len(params["initial_channels"])
+        params["selected_channel_ddowns"] = [
+            ''] * len(params["initial_channels"])
+        params["selected_channel_mins"] = [
+            ''] * len(params["initial_channels"])
+        params["selected_channel_maxes"] = [
+            ''] * len(params["initial_channels"])
 
         # I need to run the define_channels function
         channel_children = define_channels(
@@ -1018,7 +1021,7 @@ def toggle_disable(null_):
             new_placeholders_maxes = ''
             values_maxes = ''
         return indx, new_placeholders_ddowns, values_ddowns, style_ddowns, indx, new_placeholders_mins, values_mins, style_mins, indx, new_placeholders_maxes, values_maxes, style_maxes
-    
+
     else:
         off_indx = [True] * len(indx)
         dd_style = [{'width': '110px', 'filter': 'blur(0px)', 'opacity': '0'}  if i else {'width': '110px', 'filter': 'blur(0px)', 'opacity': '100'} for i in indx]
