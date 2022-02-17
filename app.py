@@ -3,6 +3,8 @@
 # required libraries
 from datetime import time
 from ntpath import join
+from re import S
+import socket
 
 import pandas as pd
 import numpy as np
@@ -52,7 +54,7 @@ params["temp_save_path"] = os.path.join(
     params["current_directory"], "temp_saves")
 
 # save params to the temp_saves folder
-print("creating and storing app parameters.")
+print("Updating software parameters.")
 pd.DataFrame(params).to_json(os.path.join(
     params["temp_save_path"], "app_params.json"))
 
@@ -126,7 +128,8 @@ navbar = dbc.NavbarSimple(
                                               className="position-absolute top-0",
                                               style={
                                                   "transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
-                                              )], id="new-button", size="sm"), width="auto"),
+                                              )], id="new-button", size="sm"),
+                                              width="auto"),
                 dbc.Col(html.Div(
                     [
                         dbc.Button("Import Data",
@@ -228,7 +231,7 @@ navbar = dbc.NavbarSimple(
                 dbc.Col(html.A(dbc.Button("About Us", id="about-us-button", size="sm"), href="http://www.physiologie2.uni-tuebingen.de/", target="_blank"),
                         width="auto", style={'margin-left': '50px'}),
                 dbc.Col(html.A(dbc.Button("Help", id="help-button", size="sm"),
-                        href="https://github.com/NimaMojtahedi/Automatic-sleep-EEG-scoring", target="_blank"), width="auto"),
+                        href="https://github.com/NimaMojtahedi/ISCAL/tree/dev", target="_blank"), width="auto"),
                 dbc.Col(html.A(html.Img(src=University_Logo, height="40px"),
                         href="http://www.physiologie2.uni-tuebingen.de/", target="_blank"), width="auto"),
             ],
@@ -337,7 +340,7 @@ graph_bar = dbc.Nav(dbc.Container(dbc.Row(
     dcc.Graph(id="ch", responsive=True, config={
         'displayModeBar': True,
         'displaylogo': False,
-        'modeBarButtonsToRemove': ['zoomin', 'zoomout', 'zoom', 'pan'],
+        'modeBarButtonsToRemove': ['zoom', 'resetscale'],
         'modeBarButtonsToAdd': ['drawline', 'drawopenpath', 'eraseshape'],
         'scrollZoom': True,
         'editable': False,
@@ -372,7 +375,7 @@ sliderbar = dbc.Container(children=[
 )
 
 
-def graph_channels(traces, names='Null Channel', downsamples=params["downsample"][0], s_fr=1000):
+def graph_channels(traces, names=['Null Channel'], downsamples=params["downsample"][0], s_fr=1000):
     # traces --> n * p array
     if downsamples:
         traces = traces[::downsamples, :]
@@ -408,37 +411,44 @@ def graph_channels(traces, names='Null Channel', downsamples=params["downsample"
 
     for i in range(nr_ch):
         # adding lines (alternative is box)
-        split_line1 = go.Scatter(x=[x0, x0], y=[y0[i], y1[i]], mode="lines",
-                                 hoverinfo='skip',
-                                 line=dict(color='black', width=3, dash='6px,3px,6px,3px'))
-        split_line2 = go.Scatter(x=[x1, x1], y=[y0[i], y1[i]], mode="lines",
-                                 hoverinfo='skip',
-                                 line=dict(color='black', width=3, dash='6px,3px,6px,3px'))
+        try:
+            split_line1 = go.Scatter(x=[x0, x0], y=[y0[i], y1[i]], mode="lines",
+                                    hoverinfo='skip',
+                                    line=dict(color='black', width=3, dash='6px,3px,6px,3px'))
+            split_line2 = go.Scatter(x=[x1, x1], y=[y0[i], y1[i]], mode="lines",
+                                    hoverinfo='skip',
+                                    line=dict(color='black', width=3, dash='6px,3px,6px,3px'))
+        
+            fig.add_trace(split_line1, row=i+1, col=1)
+            fig.add_trace(split_line2, row=i+1, col=1)
+        except:
+            pass
 
-        fig.add_trace(split_line1, row=i+1, col=1)
-        fig.add_trace(split_line2, row=i+1, col=1)
+        fig.update_layout(margin=dict(l=75, r=0, t=1, b=1),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        showlegend=False,
+                        xaxis = dict(fixedrange= True)
+                        )
+        fig.update_traces(uirevision='whole')
 
-        fig.update_layout(margin=dict(l=0, r=0, t=1, b=1),
-                          paper_bgcolor='rgba(0,0,0,0)',
-                          plot_bgcolor='rgba(0,0,0,0)',
-                          showlegend=False,
-                          xaxis = dict(fixedrange= True)
-                          )
         fig['layout'].update({'yaxis{}'.format(i+1): dict(
+        ticksuffix="       ",
         anchor="free",
         automargin=False,
-        position=0.04,
-        #for future manual scaling of y axis
-        #autorange=False,
-        title_text='<b>'+names[i]+'</b>', title_standoff = 35)})
+        position=0.01,
+        ticks='',
+        showgrid=False,
+        uirevision='yaxes',
+        title_text='<b>'+names[i]+'</b>', title_standoff = 25)})
 
         fig['layout'].update({'xaxis{}'.format(i+1): dict(tickmode= 'array',
         tickvals= [int(params['epoch_length'][0])/int(params["downsample"][0]),
         2*int(params['epoch_length'][0])/int(params["downsample"][0])],
         ticktext= ['{} sec'.format(int(params['epoch_length'][0])),
         '{} sec'.format(int(params['epoch_length'][0])*2)],
-        #rangemode="tozero",
-        )})
+        uirevision='xaxes',
+        showgrid=False,)})
 
     return fig
 
@@ -463,7 +473,7 @@ def graph_ai_metric(data):
 
 
 # spectrum & histograms
-def graph_hs_ps(data, names='Null'):
+def graph_hs_ps(data, names=['Null']):
     # list of 2 (power spectrums(by number of channels) and histograms(same))
     # first powerspectrum and then histogram
 
@@ -643,7 +653,7 @@ app.layout = dbc.Container(
 )
 def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
     # All UI offcanvases and menus (open situation) should deactivate the keyboard
-    if (not event is None) and (not off_canvas):
+    if (not event is None) and (not off_canvas) and params["data_loaded"]:
         # read slider saved value
         slider_saved_value = params["slider_saved_value"]
         print("section 1 keyboard")
@@ -687,8 +697,7 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
                     if epoch_index in score_storage.keys():
                         score_storage[epoch_index] = int(score_value)
                     else:
-                        score_storage = score_storage.update(
-                            {epoch_index: int(score_value)})
+                        score_storage.update({epoch_index: int(score_value)})
                 else:
                     score_storage = {epoch_index: int(score_value)}
 
@@ -734,6 +743,7 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
             # check and update score labels (after key left/right if they exist)
             if not score_storage is None:
                 print("section 9 keyboard")
+                
                 if epoch_index in score_storage.keys():
                     null_score_label = str(
                         score_storage[epoch_index])
@@ -896,38 +906,42 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
         print("successfuly opened import button")
         # reading only data header and updating Import button configs (path is saved as text file in os.join.path(os.getcwd, "temp_saves") + "filename.txt")
         subprocess.run("python import_path.py", shell=True)
+        try:
+            # read input path from text file already generated
+            with open(os.path.join(params["temp_save_path"], "filename.txt"), 'r') as file:
+                filename = file.read()
 
-        # read input path from text file already generated
-        with open(os.path.join(params["temp_save_path"], "filename.txt"), 'r') as file:
-            filename = file.read()
+            # update params
+            params["input_file_path"] = filename
 
-        # update params
-        params["input_file_path"] = filename
+            # create result path (for later)
+            params["result_path"] = os.path.join(
+                params["temp_save_path"], "ISCAL_Results")
 
-        # create result path (for later)
-        params["result_path"] = os.path.join(
-            params["temp_save_path"], "ISCAL_Results")
+            # start reading data header (output of the file is a dataframe)
+            data_header = read_data_header(filename)
 
-        # start reading data header (output of the file is a dataframe)
-        data_header = read_data_header(filename)
+            # update params
+            params["initial_channels"] = data_header["channel_names"].values[0]
+            params["selected_channel_ddowns"] = [
+                ''] * len(params["initial_channels"])
+            params["selected_channel_mins"] = [
+                ''] * len(params["initial_channels"])
+            params["selected_channel_maxes"] = [
+                ''] * len(params["initial_channels"])
 
-        # update params
-        params["initial_channels"] = data_header["channel_names"].values[0]
-        params["selected_channel_ddowns"] = [
-            ''] * len(params["initial_channels"])
-        params["selected_channel_mins"] = [
-            ''] * len(params["initial_channels"])
-        params["selected_channel_maxes"] = [
-            ''] * len(params["initial_channels"])
+            # I need to run the define_channels function
+            channel_children = define_channels(
+                channel_name=params["initial_channels"], disabled=False, value=[],
+                dd_value=params["selected_channel_ddowns"], mins_value=params["selected_channel_mins"],
+                maxes_value=params["selected_channel_maxes"], transition=True)
 
-        # I need to run the define_channels function
-        channel_children = define_channels(
-            channel_name=params["initial_channels"], disabled=False, value=[],
-            dd_value=params["selected_channel_ddowns"], mins_value=params["selected_channel_mins"],
-            maxes_value=params["selected_channel_maxes"], transition=True)
-
-        # button canvas, input-data-path, save-path, channel name, save-data-header
-        return True, channel_children, "Load", dash.no_update, False, False, False, n1, n2, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+            # button canvas, input-data-path, save-path, channel name, save-data-header
+            return True, channel_children, "Load", dash.no_update, False, False, False, n1, n2, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        
+        except:
+            print("import cancelled")
+            raise PreventUpdate
 
     else:
         print("off-canvas load app is launching")
@@ -1165,9 +1179,27 @@ def save_button(n_clicks):
         return dash.no_update
     return dash.no_update
 
+# save button (remain)
+@ app.callback(
+    [Output("new-button", "n_clicks"),
+     Input("new-button", "n_clicks")]
+)
+def new_session(n):
+    if n:
+        params["port"] = [int(params["port"][0])+n]
+        #@Nima: execute save params here
+        try:
+            os.system('start cmd /k py app.py')
+        except:
+            os.system('start cmd /k python app.py')
+        return dash.no_update
+    else:
+        return dash.no_update
+
 
 # run app if it get called
 if __name__ == '__main__':
     import warnings
     warnings.filterwarnings('ignore')
-    app.run_server(debug=True, threaded=True)
+    from utils import app_defaults
+    app.run_server(debug=True, threaded=True, port=params["port"][0])

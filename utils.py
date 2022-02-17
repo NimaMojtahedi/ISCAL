@@ -213,7 +213,7 @@ def process_input_data(params, start_index, end_index, return_result=False):
                 "epoch_index": i} for i in range(num_of_epoch - 1)]
 
     print("Running step 2.")
-    print("Down sampling for presentation!")
+    print("Down sampling in progress...")
     for dict_ in my_dict:
 
         # get epoch data
@@ -335,7 +335,7 @@ def app_defaults():
                      "epoch_length": [10],
                      "sampling_fr": [1000],
                      "initial_channels": None,
-                     "selected_channels": None,
+                     "selected_channels": ['Null Channel'],
                      "selected_channel_indices": [True],
                      "selected_channel_ddowns": [''],
                      "selected_channel_mins": [''],
@@ -352,6 +352,7 @@ def app_defaults():
                      "confusion_matrix": None,
                      "slider_saved_value": None,
                      "data_loaded": False,
-                     "print": "Loading app!"})
+                     "print": "Loading app!",
+                     "port": [8050]})
 
     return defaults
