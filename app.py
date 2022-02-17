@@ -661,7 +661,7 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
 
     elif params["data_loaded"] == 1:
         assert os.path.exists(os.path.join(
-                params["temp_save_path"], str(0) + ".json"))
+            params["temp_save_path"], str(0) + ".json"))
         assert os.path.exists(os.path.join(
             params["temp_save_path"], str(1) + ".json"))
 
@@ -689,22 +689,20 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
         # change it for in-use-case
         params["data_loaded"] = 2
         return graph_channels(full_trace.T, names=params["selected_channels"]), graph_hs_ps(full_ps_hist, names=params["selected_channels"]), 0, dash.no_update, dash.no_update, dash.no_update, ""
-        
+
     elif params["data_loaded"] == 2:
         # read slider saved value
         slider_saved_value = params["slider_saved_value"][0]
-        
+
         print("data ready in-use (func or unfunc)")
         # It is important False off_canvas /  # only in this case enter to this section (later more keys should come here)
         functional_keys = ((event["key"] == "ArrowRight") or (
             event["key"] == "ArrowLeft") or score_value == "1" or score_value == "2" or score_value == "3" or (slider_live_value != slider_saved_value))
 
-        
         if off_canvas:
             print('dev msg: off canvas')
             raise PreventUpdate
-        
-        
+
         elif (functional_keys and not off_canvas):
             print("data ready in-use (FUNC General)")
             # read params
@@ -756,7 +754,7 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
 
             # as a general rule: updating epoch index in params
             params["epoch_index"] = [int(epoch_index)]
-            
+
             # read data batch from disk / check if save_path exist
             df_mid = pd.read_json(os.path.join(
                 params["temp_save_path"], str(epoch_index) + ".json"))
@@ -791,7 +789,7 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
             print("The current epoch index is ", epoch_index)
             # check and update score labels (after key left/right if they exist)
             if not score_storage is None:
-                
+
                 if epoch_index in score_storage.keys():
                     null_score_label = str(
                         score_storage[epoch_index])
@@ -829,12 +827,12 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
         elif (not functional_keys and not off_canvas):
             print('data ready in-use (Unfunctional key!)')
             return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, ""
-        
+
         else:
             # this condition is not consistent with logic; troubleshoot when happened
             print('404: Something went wrong! :(')
             raise PreventUpdate
-    
+
     else:
         # this condition is not consistent with logic; troubleshoot when happened
         print('404: Something went wrong! :(')
@@ -1215,11 +1213,11 @@ def save_button(n_clicks):
      Input("new-button", "n_clicks")]
 )
 def new_session(n):
-    if n:
+    if 0:
         params["port"] = [int(params["port"][0])+n]
         # first create a folder or make sure the folder exist
-        save_path = os.getcwd()
-        os.makedirs(save_path, exist_ok=True)
+        #save_path = os.getcwd()
+        #os.makedirs(save_path, exist_ok=True)
 
         # dump params
         with open(os.path.join(save_path, "project.iscal.pickle"), "wb") as f:
