@@ -130,7 +130,7 @@ navbar = dbc.NavbarSimple(
                                               style={
                                                   "transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
                                               )], id="new-button", size="sm"),
-                                              width="auto"),
+                        width="auto"),
                 dbc.Col(html.Div(
                     [
                         dbc.Button("Import Data",
@@ -315,7 +315,7 @@ inputbar = dbc.Nav(children=[
                         max=3,
                         min=1,
                         inputmode="numeric",
-                        # type="number",
+                        value="",
                         id="null_epoch_act",
                         placeholder="",
                         autocomplete="off",
@@ -414,42 +414,42 @@ def graph_channels(traces, names=['Null Channel'], downsamples=params["downsampl
         # adding lines (alternative is box)
         try:
             split_line1 = go.Scatter(x=[x0, x0], y=[y0[i], y1[i]], mode="lines",
-                                    hoverinfo='skip',
-                                    line=dict(color='black', width=3, dash='6px,3px,6px,3px'))
+                                     hoverinfo='skip',
+                                     line=dict(color='black', width=3, dash='6px,3px,6px,3px'))
             split_line2 = go.Scatter(x=[x1, x1], y=[y0[i], y1[i]], mode="lines",
-                                    hoverinfo='skip',
-                                    line=dict(color='black', width=3, dash='6px,3px,6px,3px'))
-        
+                                     hoverinfo='skip',
+                                     line=dict(color='black', width=3, dash='6px,3px,6px,3px'))
+
             fig.add_trace(split_line1, row=i+1, col=1)
             fig.add_trace(split_line2, row=i+1, col=1)
         except:
             pass
 
         fig.update_layout(margin=dict(l=75, r=0, t=1, b=1),
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        showlegend=False,
-                        xaxis = dict(fixedrange= True)
-                        )
+                          paper_bgcolor='rgba(0,0,0,0)',
+                          plot_bgcolor='rgba(0,0,0,0)',
+                          showlegend=False,
+                          xaxis=dict(fixedrange=True)
+                          )
         fig.update_traces(uirevision='whole')
 
         fig['layout'].update({'yaxis{}'.format(i+1): dict(
-        ticksuffix="       ",
-        anchor="free",
-        automargin=False,
-        position=0.01,
-        ticks='',
-        showgrid=False,
-        uirevision='yaxes',
-        title_text='<b>'+names[i]+'</b>', title_standoff = 25)})
+            ticksuffix="       ",
+            anchor="free",
+            automargin=False,
+            position=0.01,
+            ticks='',
+            showgrid=False,
+            uirevision='yaxes',
+            title_text='<b>'+names[i]+'</b>', title_standoff=25)})
 
-        fig['layout'].update({'xaxis{}'.format(i+1): dict(tickmode= 'array',
-        tickvals= [int(params['epoch_length'][0])/int(params["downsample"][0]),
-        2*int(params['epoch_length'][0])/int(params["downsample"][0])],
-        ticktext= ['{} sec'.format(int(params['epoch_length'][0])),
-        '{} sec'.format(int(params['epoch_length'][0])*2)],
-        uirevision='xaxes',
-        showgrid=False,)})
+        fig['layout'].update({'xaxis{}'.format(i+1): dict(tickmode='array',
+                                                          tickvals=[int(params['epoch_length'][0])/int(params["downsample"][0]),
+                                                                    2*int(params['epoch_length'][0])/int(params["downsample"][0])],
+                                                          ticktext=['{} sec'.format(int(params['epoch_length'][0])),
+                                                                    '{} sec'.format(int(params['epoch_length'][0])*2)],
+                                                          uirevision='xaxes',
+                                                          showgrid=False,)})
 
     return fig
 
@@ -653,17 +653,60 @@ app.layout = dbc.Container(
      ]
 )
 def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
+
     # All UI offcanvases and menus (open situation) should deactivate the keyboard
-    if (not event is None) and (not off_canvas) and params["data_loaded"]:
+    if params["data_loaded"] == 0:
+        print("Keyboard first launch")
+        return graph_channels(np.zeros((1000, 1))), graph_hs_ps([np.zeros((1000, 1)), np.zeros((1000, 1))]), 0, dash.no_update, dash.no_update, dash.no_update, ""
+
+    elif params["data_loaded"] == 1:
+        assert os.path.exists(os.path.join(
+                params["temp_save_path"], str(0) + ".json"))
+        assert os.path.exists(os.path.join(
+            params["temp_save_path"], str(1) + ".json"))
+
+        # getting data
+        df_mid = pd.read_json(os.path.join(
+            params["temp_save_path"], str(0) + ".json"))
+        data_mid = np.stack(df_mid["data"])
+        ps_mid = np.stack(df_mid["spectrums"]).T
+        hist_mid = np.stack(df_mid["histograms"]).T
+        full_ps_hist = [ps_mid, hist_mid]
+
+        data_left = np.zeros_like(data_mid)
+
+        df_right = pd.read_json(os.path.join(
+            params["temp_save_path"], str(1) + ".json"))
+        data_right = np.stack(df_right["data"])
+
+        # combine mid_right datasets
+        full_trace = np.hstack(
+            [data_left,
+                data_mid,
+                data_right])
+
+        print("Enjoy scoring!")
+        # change it for in-use-case
+        params["data_loaded"] = 2
+        return graph_channels(full_trace.T, names=params["selected_channels"]), graph_hs_ps(full_ps_hist, names=params["selected_channels"]), 0, dash.no_update, dash.no_update, dash.no_update, ""
+        
+    elif params["data_loaded"] == 2:
         # read slider saved value
-        slider_saved_value = params["slider_saved_value"]
-        print("section 1 keyboard")
+        slider_saved_value = params["slider_saved_value"][0]
+        
+        print("data ready in-use (func or unfunc)")
         # It is important False off_canvas /  # only in this case enter to this section (later more keys should come here)
-        pressed_key_condition = ((event["key"] == "ArrowRight") or (
-            event["key"] == "ArrowLeft") or score_value == 1 or score_value == 2 or score_value == 3) and params["data_loaded"]
-        if (pressed_key_condition and not off_canvas) or ((slider_live_value != slider_saved_value) and not off_canvas):
-            print("section 2 keyboard")
-            # pdb.set_trace()
+        functional_keys = ((event["key"] == "ArrowRight") or (
+            event["key"] == "ArrowLeft") or score_value == "1" or score_value == "2" or score_value == "3" or (slider_live_value != slider_saved_value))
+
+        
+        if off_canvas:
+            print('dev msg: off canvas')
+            raise PreventUpdate
+        
+        
+        elif (functional_keys and not off_canvas):
+            print("data ready in-use (FUNC General)")
             # read params
             epoch_index = params["epoch_index"][0]
             max_nr_epochs = params["max_possible_epochs"][0]
@@ -671,12 +714,14 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
 
             # there is change in slider value / update epoch to current slider value
             if (slider_saved_value != slider_live_value):
-                print("section 3 keyboard")
+                print("data ready in-use (FUNC: slider)")
                 epoch_index = int(slider_live_value)
+                # update slider_saved_value
+                params["slider_saved_value"] = [int(slider_live_value)]
 
             # update figures with only left/right arrow keys
             if ((event["key"] == "ArrowRight") or (event["key"] == "ArrowLeft")):
-                print("section 4 keyboard")
+                print("data ready in-use (FUNC: arrowkey)")
                 # check what is user pressed key
                 if (event["key"] == "ArrowRight"):
                     if epoch_index < max_nr_epochs:
@@ -690,23 +735,28 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
 
             # update figures with score labels
             if score_value == "1" or score_value == "2" or score_value == "3":
-                print("section 5 keyboard")
+                print("data ready in-use (FUNC: scoring)")
                 # saving score label to storage
                 if not score_storage is None:
-                    print("section 6 keyboard")
                     # re-scoring effect
                     if epoch_index in score_storage.keys():
+                        print("data ready in-use (FUNC: rescoring)")
                         score_storage[epoch_index] = int(score_value)
                     else:
                         score_storage.update({epoch_index: int(score_value)})
                 else:
                     score_storage = {epoch_index: int(score_value)}
 
+                params["scoring_labels"] = score_storage
+
                 if epoch_index < max_nr_epochs:
                     epoch_index += 1
 
                 slider_live_value = epoch_index
 
+            # as a general rule: updating epoch index in params
+            params["epoch_index"] = [int(epoch_index)]
+            
             # read data batch from disk / check if save_path exist
             df_mid = pd.read_json(os.path.join(
                 params["temp_save_path"], str(epoch_index) + ".json"))
@@ -716,14 +766,12 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
 
             full_ps_hist = [ps_mid, hist_mid]
             if epoch_index == max_nr_epochs:
-                print("section 7 keyboard")
                 data_right = np.zeros_like(data_mid)
             else:
                 data_right = np.stack(pd.read_json(os.path.join(
                     params["temp_save_path"], str(epoch_index + 1) + ".json"))["data"])
 
             if epoch_index == 0:
-                print("section 8 keyboard")
                 data_left = np.zeros_like(data_mid)
             else:
                 data_left = np.stack(pd.read_json(os.path.join(
@@ -743,7 +791,6 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
             print("The current epoch index is ", epoch_index)
             # check and update score labels (after key left/right if they exist)
             if not score_storage is None:
-                print("section 9 keyboard")
                 
                 if epoch_index in score_storage.keys():
                     null_score_label = str(
@@ -768,14 +815,9 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
                 epoch_minus_one_label = ""
                 epoch_plus_one_label = ""
 
-            # change datatype
-            if not score_storage is None:
-                print("section 10 keyboard")
-                params["scoring_labels"] = score_storage
-
             # check epoch and score_storage to trigger ml train
             if (not epoch_index is None) and (not score_storage is None) and (epoch_index % 10 == 0) and (epoch_index > 0):
-                print("section 11 keyboard")
+                print("data ready in-use (FUNC: ML Trigger)")
                 ml_trigger = {"epoch_index": [epoch_index],
                               "score_storage": score_storage,
                               "save_path": params["temp_save_path"]}
@@ -783,39 +825,20 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
                 ml_trigger = dash.no_update
 
             return fig_traces, ps_hist_fig, slider_live_value, epoch_minus_one_label, null_score_label, epoch_plus_one_label, ""
-    else:
-        # Understand condition after data is loaded vs app start
-        if params["data_loaded"]:
-            assert os.path.exists(os.path.join(
-                params["temp_save_path"], str(0) + ".json"))
-            assert os.path.exists(os.path.join(
-                params["temp_save_path"], str(1) + ".json"))
 
-            # getting data
-            df_mid = pd.read_json(os.path.join(
-                params["temp_save_path"], str(0) + ".json"))
-            data_mid = np.stack(df_mid["data"])
-            ps_mid = np.stack(df_mid["spectrums"]).T
-            hist_mid = np.stack(df_mid["histograms"]).T
-            full_ps_hist = [ps_mid, hist_mid]
-
-            data_left = np.zeros_like(data_mid)
-
-            df_right = pd.read_json(os.path.join(
-                params["temp_save_path"], str(1) + ".json"))
-            data_right = np.stack(df_right["data"])
-
-            # combine mid_right datasets
-            full_trace = np.hstack(
-                [data_left,
-                    data_mid,
-                    data_right])
-
-            print("Enjoy scoring!")
-            return graph_channels(full_trace.T, names=params["selected_channels"]), graph_hs_ps(full_ps_hist, names=params["selected_channels"]), 0, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        elif (not functional_keys and not off_canvas):
+            print('data ready in-use (Unfunctional key!)')
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, ""
+        
         else:
-            print("Keyboard first launch")
-            return graph_channels(np.zeros((1000, 1))), graph_hs_ps([np.zeros((1000, 1)), np.zeros((1000, 1))]), 0, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+            # this condition is not consistent with logic; troubleshoot when happened
+            print('404: Something went wrong! :(')
+            raise PreventUpdate
+    
+    else:
+        # this condition is not consistent with logic; troubleshoot when happened
+        print('404: Something went wrong! :(')
+        raise PreventUpdate
 
 
 # This part has to merge to above callback after fixing issue
@@ -887,7 +910,7 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
                                           end_index=-1,
                                           return_result=False)
         params["max_possible_epochs"] = [max_epoch_nr]
-        params["data_loaded"] = True
+        params["data_loaded"] = 1
         params["epoch_index"] = [0]
         print(f"Max epochs: {max_epoch_nr}")
         return False, dash.no_update, "Loaded Successfully!", "", True, True, True, 0, 0, secondary, 0, 0, max_epoch_nr
@@ -939,7 +962,7 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
 
             # button canvas, input-data-path, save-path, channel name, save-data-header
             return True, channel_children, "Load", dash.no_update, False, False, False, n1, n2, dash.no_update, dash.no_update, dash.no_update, dash.no_update
-        
+
         except:
             print("import cancelled")
             raise PreventUpdate
@@ -1185,6 +1208,8 @@ def save_button(n_clicks):
     return dash.no_update
 
 # save button (remain)
+
+
 @ app.callback(
     [Output("new-button", "n_clicks"),
      Input("new-button", "n_clicks")]
@@ -1192,9 +1217,17 @@ def save_button(n_clicks):
 def new_session(n):
     if n:
         params["port"] = [int(params["port"][0])+n]
-        #@Nima: execute save params here
+        # first create a folder or make sure the folder exist
+        save_path = os.getcwd()
+        os.makedirs(save_path, exist_ok=True)
+
+        # dump params
+        with open(os.path.join(save_path, "project.iscal.pickle"), "wb") as f:
+            pickle.dump(params, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+        time.sleep(.1)
         try:
-            os.system('start cmd /k py app.py')
+            os.system('start cmd /k python app.py')
         except:
             os.system('start cmd /k python app.py')
         return dash.no_update
@@ -1243,7 +1276,7 @@ def open_project(n_click):
 
         time.sleep(.1)
         print("project is loaded!")
-        pdb.set_trace()
+
         return dash.no_update
     return dash.no_update
 

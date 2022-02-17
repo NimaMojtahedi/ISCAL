@@ -350,8 +350,9 @@ def app_defaults():
                      "AI_accuracy": [0],
                      "AI_trigger_param": None,
                      "confusion_matrix": None,
-                     "slider_saved_value": None,
-                     "data_loaded": False,
+                     "slider_saved_value": [0],
+                     # data_loaded: 0- not loaded, 1-loaded without action, 2-already in use
+                     "data_loaded": 0,
                      "AI_model": None,
                      "print": "Loading app!",
                      "port": [8050]})
