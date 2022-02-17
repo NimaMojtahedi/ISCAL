@@ -9,7 +9,8 @@ def import_path():
     Tk().withdraw()  # we don't want a full GUI, so keep the root window from appearing
     # show an "Open" dialog box and return the path to the selected file
     filename = askopenfilename()
-
+    os.makedirs(os.path.join(os.getcwd(), "temp_saves"), exist_ok=True)
+    
     with open(os.path.join(os.getcwd(), "temp_saves", "filename.txt"), "w") as text_file:
         text_file.write(filename)
     print(filename)

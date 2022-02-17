@@ -343,7 +343,7 @@ def app_defaults():
                      "transition": False,
                      "input_file_info": None,
                      "pressed_key": None,
-                     "downsample": [5],
+                     "downsample": [3],
                      "max_possible_epochs": [10000],
                      "scoring_labels": None,
                      "slider_value": [0],
@@ -352,6 +352,7 @@ def app_defaults():
                      "confusion_matrix": None,
                      "slider_saved_value": None,
                      "data_loaded": False,
+                     "AI_model":None,
                      "print": "Loading app!"})
 
     return defaults

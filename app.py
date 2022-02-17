@@ -10,6 +10,7 @@ from sklearn.metrics import confusion_matrix
 import json
 import pdb
 import time
+import pickle
 import os
 import subprocess
 from sklearn.model_selection import train_test_split
@@ -183,11 +184,11 @@ navbar = dbc.NavbarSimple(
 
                 dbc.Col(dbc.Button("Save Scores", id="save-button",
                         size="sm"), width="auto"),
-                dbc.Col(dbc.Button(["Save Project As...", dbc.Badge("New", color="danger", pill=True, text_color="white",
-                                                                    className="position-absolute top-0",
-                                                                    style={
+                dbc.Col(dbc.Button(["Save Project", dbc.Badge("New", color="danger", pill=True, text_color="white",
+                                                              className="position-absolute top-0",
+                                                              style={
                                                                         "transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
-                                                                    )], id="save-project",
+                                                              )], id="save-project",
                                    size="sm"), width="auto"),
                 dbc.Col(dbc.Button(["Open Project", dbc.Badge("New", color="danger", pill=True, text_color="white",
                                                               className="position-absolute top-0",
@@ -422,23 +423,23 @@ def graph_channels(traces, names='Null Channel', downsamples=params["downsample"
                           paper_bgcolor='rgba(0,0,0,0)',
                           plot_bgcolor='rgba(0,0,0,0)',
                           showlegend=False,
-                          xaxis = dict(fixedrange= True)
+                          xaxis=dict(fixedrange=True)
                           )
         fig['layout'].update({'yaxis{}'.format(i+1): dict(
-        anchor="free",
-        automargin=False,
-        position=0.04,
-        #for future manual scaling of y axis
-        #autorange=False,
-        title_text='<b>'+names[i]+'</b>', title_standoff = 35)})
+            anchor="free",
+            automargin=False,
+            position=0.04,
+            # for future manual scaling of y axis
+            # autorange=False,
+            title_text='<b>'+names[i]+'</b>', title_standoff=35)})
 
-        fig['layout'].update({'xaxis{}'.format(i+1): dict(tickmode= 'array',
-        tickvals= [int(params['epoch_length'][0])/int(params["downsample"][0]),
-        2*int(params['epoch_length'][0])/int(params["downsample"][0])],
-        ticktext= ['{} sec'.format(int(params['epoch_length'][0])),
-        '{} sec'.format(int(params['epoch_length'][0])*2)],
-        #rangemode="tozero",
-        )})
+        fig['layout'].update({'xaxis{}'.format(i+1): dict(tickmode='array',
+                                                          tickvals=[int(params['epoch_length'][0])/int(params["downsample"][0]),
+                                                                    2*int(params['epoch_length'][0])/int(params["downsample"][0])],
+                                                          ticktext=['{} sec'.format(int(params['epoch_length'][0])),
+                                                                    '{} sec'.format(int(params['epoch_length'][0])*2)],
+                                                          # rangemode="tozero",
+                                                          )})
 
     return fig
 
@@ -514,7 +515,7 @@ def graph_hs_ps(data, names='Null'):
 
 def graph_conf_mat(y_true, y_pred, class_names):
 
-    cm = confusion_matrix(y_true, y_pred, normalize='true')
+    cm = confusion_matrix(y_true, y_pred)  # normalize='true'
     df = pd.DataFrame(np.round(cm, 2), columns=class_names, index=class_names)
     return dbc.Table.from_dataframe(df, striped=False, bordered=False, hover=True, index=True, responsive=True, size="sm", color="info", style={'color': '#003D7F', 'font-size': 14})
 
@@ -906,7 +907,7 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
 
         # create result path (for later)
         params["result_path"] = os.path.join(
-            params["temp_save_path"], "ISCAL_Results")
+            os.path.split(params["temp_save_path"])[0], "ISCAL_Results")
 
         # start reading data header (output of the file is a dataframe)
         data_header = read_data_header(filename)
@@ -1024,8 +1025,10 @@ def toggle_disable(null_):
 
     else:
         off_indx = [True] * len(indx)
-        dd_style = [{'width': '110px', 'filter': 'blur(0px)', 'opacity': '0'}  if i else {'width': '110px', 'filter': 'blur(0px)', 'opacity': '100'} for i in indx]
-        min_max_style = [{'width': '80px', 'filter': 'blur(0px)', 'opacity': '0'}  if i else {'width': '80px', 'filter': 'blur(0px)', 'opacity': '100'} for i in indx]
+        dd_style = [{'width': '110px', 'filter': 'blur(0px)', 'opacity': '0'} if i else {
+            'width': '110px', 'filter': 'blur(0px)', 'opacity': '100'} for i in indx]
+        min_max_style = [{'width': '80px', 'filter': 'blur(0px)', 'opacity': '0'} if i else {
+            'width': '80px', 'filter': 'blur(0px)', 'opacity': '100'} for i in indx]
         #same_style = [{'width': '80px', 'filter': 'blur(0px)', 'opacity': '100'}] * len(indx)
         return off_indx, params["selected_channel_ddowns"], params["selected_channel_ddowns"], dd_style, off_indx, params["selected_channel_mins"], params["selected_channel_mins"], min_max_style, off_indx, params["selected_channel_maxes"], params["selected_channel_maxes"], min_max_style
 
@@ -1111,6 +1114,8 @@ def train_indicator(live_slider):
                                                      ytest=y_test).run_xgboost(n_trials=20)
             print(
                 f'execution time: {np.rint(time.time() - start_time)} seconds')
+            # update AI_model
+            params["AI_model"] = best_classifier
 
             # updating AI-Accuracy vector
             params["AI_accuracy"] = np.hstack(
@@ -1162,6 +1167,52 @@ def save_button(n_clicks):
         time.sleep(.1)
         print("saving scoring labels in .csv format")
 
+        return dash.no_update
+    return dash.no_update
+
+
+# save project
+@ app.callback(
+    [Output("save-project", "children"),
+     Input("save-project", "n_clicks")]
+)
+def save_project(n_click):
+    if n_click:
+
+        # first create a folder or make sure the folder exist
+        save_path = params["result_path"]
+        os.makedirs(save_path, exist_ok=True)
+
+        # dump params
+        with open(os.path.join(save_path, "project.iscal.pickle"), "wb") as f:
+            pickle.dump(params, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+        time.sleep(.1)
+        print("project is saved to ISCAL_result folder!")
+        return dash.no_update
+    return dash.no_update
+
+
+# open project
+@ app.callback(
+    [Output("open-project", "children"),
+     Input("open-project", "n_clicks")]
+)
+def open_project(n_click):
+    if n_click:
+        # get project path
+        subprocess.run("python import_path.py", shell=True)
+
+        # load params
+        with open(os.path.join(os.getcwd(), "temp_saves", "filename.txt"), 'rb') as file:
+            filename = file.read()
+
+        with open(filename, 'rb') as file:
+            params = pickle.load(file)
+
+        time.sleep(.1)
+        print("project is loaded!")
+        pdb.set_trace()
         return dash.no_update
     return dash.no_update
 
