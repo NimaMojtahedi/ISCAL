@@ -46,6 +46,7 @@ temp_ISCAL_font = "https://see.fontimg.com/api/renderfont4/q341/eyJyIjoiZnMiLCJo
 
 
 # storage default params
+global params
 params = app_defaults()
 
 # create temp. save folder - this folder needs to be deleted after closing app
@@ -55,7 +56,7 @@ params["temp_save_path"] = os.path.join(
     params["current_directory"], "temp_saves")
 
 # save params to the temp_saves folder
-print("Updating software parameters.")
+print("Updating software parameters")
 pd.DataFrame(params).to_json(os.path.join(
     params["temp_save_path"], "app_params.json"))
 
@@ -125,7 +126,7 @@ navbar = dbc.NavbarSimple(
                 dbc.Col(html.A(html.Img(src=temp_ISCAL_font,
                         height="40px"), id='for_dummy_use'), width="auto"),
                 dbc.Col(dbc.Button(["New Session",
-                                    dbc.Badge("Beta", color="success", pill=True, text_color="white",
+                                    dbc.Badge("Next", color="success", pill=True, text_color="white",
                                               className="position-absolute top-0",
                                               style={
                                                   "transform": "rotate(40deg)", "width": "30px", 'fontSize': 8, "margin-top": "15px", "margin-left": "-8px"},
@@ -636,13 +637,15 @@ app.layout = dbc.Container(
 # 1. reading keyboard keys / epoch-index / max number of possible epoch
 # 2. update epoch-index / user pressed key. Both in Storage
 @app.callback(
-    [Output("ch", "figure"),
+    [Output("keyboard", "keydown"),
+     Output("ch", "figure"),
      Output("hist-graphs", "figure"),
      Output("epoch-sliderbar", "value"),
      Output("minus-one_epoch", "value"),
      Output("null_epoch", "value"),
      Output("plus-one_epoch", "value"),
      Output("null_epoch_act", "value"),
+     Output("epoch-sliderbar", "max")
      ],
 
     [Input("keyboard", "keydown"),
@@ -653,11 +656,20 @@ app.layout = dbc.Container(
      ]
 )
 def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
-
     # All UI offcanvases and menus (open situation) should deactivate the keyboard
+
     if params["data_loaded"] == 0:
-        print("Keyboard first launch")
-        return graph_channels(np.zeros((1000, 1))), graph_hs_ps([np.zeros((1000, 1)), np.zeros((1000, 1))]), 0, dash.no_update, dash.no_update, dash.no_update, ""
+        if off_canvas:
+            raise PreventUpdate
+        elif not off_canvas:
+            try:
+                event["key"] = ""
+            except:
+                pass
+            return event, graph_channels(np.zeros((1000, 1))), graph_hs_ps([np.zeros((1000, 1)), np.zeros((1000, 1))]), 0, dash.no_update, dash.no_update, dash.no_update, "", dash.no_update
+        else:
+            print('404: Something went wrong! :(')
+            raise PreventUpdate
 
     elif params["data_loaded"] == 1:
         assert os.path.exists(os.path.join(
@@ -688,34 +700,96 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
         print("Enjoy scoring!")
         # change it for in-use-case
         params["data_loaded"] = 2
-        return graph_channels(full_trace.T, names=params["selected_channels"]), graph_hs_ps(full_ps_hist, names=params["selected_channels"]), 0, dash.no_update, dash.no_update, dash.no_update, ""
+        try:
+            event["key"] = ""
+        except:
+            pass
+        return event, graph_channels(full_trace.T, names=params["selected_channels"]), graph_hs_ps(full_ps_hist, names=params["selected_channels"]), 0, dash.no_update, dash.no_update, dash.no_update, "", params["max_possible_epochs"][0]
+
+    elif params["data_loaded"] == 3:
+        assert os.path.exists(os.path.join(
+            params["temp_save_path"], str(int(params["epoch_index"][0])) + ".json"))
+        assert os.path.exists(os.path.join(
+            params["temp_save_path"], str(int(params["epoch_index"][0])+1) + ".json"))
+
+        # getting data of mid epoch, so-called null epoch
+        df_mid = pd.read_json(os.path.join(
+            params["temp_save_path"], str(int(params["epoch_index"][0])) + ".json"))
+        data_mid = np.stack(df_mid["data"])
+        ps_mid = np.stack(df_mid["spectrums"]).T
+        hist_mid = np.stack(df_mid["histograms"]).T
+        full_ps_hist = [ps_mid, hist_mid]
+
+        # trying the minus one epoch data load, to catch th error of opening at 0 epoch
+        try:
+            assert os.path.exists(os.path.join(
+                params["temp_save_path"], str(int(params["epoch_index"][0])-1) + ".json"))
+            df_left = pd.read_json(os.path.join(
+                params["temp_save_path"], str(int(params["epoch_index"][0])-1) + ".json"))
+            data_left = np.stack(df_left["data"])
+        except:
+            data_left = np.zeros_like(data_mid)
+
+        df_right = pd.read_json(os.path.join(
+            params["temp_save_path"], str(int(params["epoch_index"][0])+1) + ".json"))
+        data_right = np.stack(df_right["data"])
+
+        # right epoch label
+        try:
+            epoch_plus_one_label = str(
+                params["scoring_labels"][int(params["epoch_index"][0]) + 1])
+        except:
+            epoch_plus_one_label = ""
+
+        # left epoch label
+        try:
+            epoch_minus_one_label = str(
+                params["scoring_labels"][int(params["epoch_index"][0]) - 1])
+        except:
+            epoch_minus_one_label = ""
+
+        # mid epoch label
+        try:
+            null_score_label = str(
+                params["scoring_labels"][int(params["epoch_index"][0])])
+        except:
+            null_score_label = ""
+
+        # combine mid_right datasets
+        full_trace = np.hstack(
+            [data_left,
+                data_mid,
+                data_right])
+
+        print("Enjoy scoring!")
+        # change it for in-use-case
+        params["data_loaded"] = 2
+        try:
+            event["key"] = ""
+        except:
+            pass
+        return event, graph_channels(full_trace.T, names=params["selected_channels"]), graph_hs_ps(full_ps_hist, names=params["selected_channels"]), params["slider_saved_value"][0], epoch_minus_one_label, null_score_label, epoch_plus_one_label, "", params["max_possible_epochs"][0]
 
     elif params["data_loaded"] == 2:
         # read slider saved value
         slider_saved_value = params["slider_saved_value"][0]
-
-        print("data ready in-use (func or unfunc)")
         # It is important False off_canvas /  # only in this case enter to this section (later more keys should come here)
-        functional_keys = ((event["key"] == "ArrowRight") or (
-            event["key"] == "ArrowLeft") or score_value == "1" or score_value == "2" or score_value == "3" or (slider_live_value != slider_saved_value))
+        functional_keys = (slider_live_value != slider_saved_value or score_value == "1" or
+                           score_value == "2" or score_value == "3" or event["key"] == "ArrowRight" or event["key"] == "ArrowLeft")
 
         if off_canvas:
-            print('dev msg: off canvas')
             raise PreventUpdate
 
         elif (functional_keys and not off_canvas):
-            print("data ready in-use (FUNC General)")
             # read params
             epoch_index = params["epoch_index"][0]
             max_nr_epochs = params["max_possible_epochs"][0]
             score_storage = params["scoring_labels"]
-
             # there is change in slider value / update epoch to current slider value
             if (slider_saved_value != slider_live_value):
                 print("data ready in-use (FUNC: slider)")
-                epoch_index = int(slider_live_value)
                 # update slider_saved_value
-                params["slider_saved_value"] = [int(slider_live_value)]
+                slider_saved_value = epoch_index = int(slider_live_value)
 
             # update figures with only left/right arrow keys
             if ((event["key"] == "ArrowRight") or (event["key"] == "ArrowLeft")):
@@ -729,7 +803,7 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
                     if epoch_index > 0:
                         epoch_index -= 1
 
-                slider_live_value = epoch_index
+                slider_saved_value = slider_live_value = int(epoch_index)
 
             # update figures with score labels
             if score_value == "1" or score_value == "2" or score_value == "3":
@@ -738,7 +812,6 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
                 if not score_storage is None:
                     # re-scoring effect
                     if epoch_index in score_storage.keys():
-                        print("data ready in-use (FUNC: rescoring)")
                         score_storage[epoch_index] = int(score_value)
                     else:
                         score_storage.update({epoch_index: int(score_value)})
@@ -750,10 +823,11 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
                 if epoch_index < max_nr_epochs:
                     epoch_index += 1
 
-                slider_live_value = epoch_index
+                slider_saved_value = slider_live_value = int(epoch_index)
 
             # as a general rule: updating epoch index in params
             params["epoch_index"] = [int(epoch_index)]
+            params["slider_saved_value"] = [int(slider_saved_value)]
 
             # read data batch from disk / check if save_path exist
             df_mid = pd.read_json(os.path.join(
@@ -815,18 +889,26 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
 
             # check epoch and score_storage to trigger ml train
             if (not epoch_index is None) and (not score_storage is None) and (epoch_index % 10 == 0) and (epoch_index > 0):
-                print("data ready in-use (FUNC: ML Trigger)")
+                # print("data ready in-use (FUNC: ML Trigger)")
                 ml_trigger = {"epoch_index": [epoch_index],
                               "score_storage": score_storage,
                               "save_path": params["temp_save_path"]}
             else:
                 ml_trigger = dash.no_update
 
-            return fig_traces, ps_hist_fig, slider_live_value, epoch_minus_one_label, null_score_label, epoch_plus_one_label, ""
+            try:
+                event["key"] = ""
+            except:
+                pass
+            return event, fig_traces, ps_hist_fig, slider_live_value, epoch_minus_one_label, null_score_label, epoch_plus_one_label, "", dash.no_update
 
         elif (not functional_keys and not off_canvas):
             print('data ready in-use (Unfunctional key!)')
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, ""
+            try:
+                event["key"] = ""
+            except:
+                pass
+            return event, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, "", dash.no_update
 
         else:
             # this condition is not consistent with logic; troubleshoot when happened
@@ -848,14 +930,16 @@ def keydown(event, n_keydowns, off_canvas, score_value, slider_live_value):
 def user_custom_epoch_length(value):
     if not value is None:
         if value.isnumeric():
-            print("section 2 epoch-length")
-            params["epoch_length"] = [int(value)]
+            # catch the error of numeric + string given at the same time, e.g. 1e
+            try:
+                params["epoch_length"] = [int(value)]
+            except:
+                return ""
             time.sleep(.1)
-            print(type(params["epoch_length"]), params["epoch_length"])
             return value
         else:
             # if this is the case make input invalid @Farzin
-            params["epoch_length"] = ""
+            params["epoch_length"] = [""]
             return ""
     else:
         # Default value, given by user in utils.py, when app is launching
@@ -889,7 +973,6 @@ def toggle_adv_param_offcanvas(n, is_open):
      Output("second_execution", "children"),
      Output("internal-trigger", "max_intervals"),
      Output("internal-trigger", "n_intervals"),
-     Output("epoch-sliderbar", "max")
      ],
 
     [Input("import-offcanvas-button", "n_clicks"),
@@ -901,31 +984,28 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
 
     if secondary == True and self_trigger == 1:
         secondary = False
-
-        print("load button running")
         max_epoch_nr = process_input_data(params=params,
                                           start_index=0,
                                           end_index=-1,
                                           return_result=False)
-        params["max_possible_epochs"] = [max_epoch_nr]
+        params["max_possible_epochs"] = [max_epoch_nr - 1]
         params["data_loaded"] = 1
         params["epoch_index"] = [0]
         print(f"Max epochs: {max_epoch_nr}")
-        return False, dash.no_update, "Loaded Successfully!", "", True, True, True, 0, 0, secondary, 0, 0, max_epoch_nr
+        return False, dash.no_update, "Loaded Successfully!", "", True, True, True, 0, 0, secondary, 0, 0
 
     elif n2:
-        print("load button action")
         n2 = n2 - 1
         channel_children = define_channels(
             channel_name=params["initial_channels"], disabled=True, value=params["selected_channels"],
             dd_value=params["selected_channel_ddowns"], mins_value=params["selected_channel_mins"],
             maxes_value=params["selected_channel_maxes"], transition=False)
         secondary = True
-        return dash.no_update, channel_children, "Loading...", dash.no_update, True, True, True, 0, 0, secondary, 1, 0, dash.no_update
+        return dash.no_update, channel_children, "Loading...", dash.no_update, True, True, True, 0, 0, secondary, 1, 0
 
     elif n1 != n2:
         n1 = n1 - 1
-        print("successfuly opened import button")
+        print("Browsing for import...")
         # reading only data header and updating Import button configs (path is saved as text file in os.join.path(os.getcwd, "temp_saves") + "filename.txt")
         subprocess.run("python import_path.py", shell=True)
         try:
@@ -938,7 +1018,7 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
 
             # create result path (for later)
             params["result_path"] = os.path.join(
-                params["temp_save_path"], "ISCAL_Results")
+                os.path.split(params["temp_save_path"])[0], "ISCAL_Results")
 
             # start reading data header (output of the file is a dataframe)
             data_header = read_data_header(filename)
@@ -959,14 +1039,14 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
                 maxes_value=params["selected_channel_maxes"], transition=True)
 
             # button canvas, input-data-path, save-path, channel name, save-data-header
-            return True, channel_children, "Load", dash.no_update, False, False, False, n1, n2, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+            return True, channel_children, "Load", dash.no_update, False, False, False, n1, n2, dash.no_update, dash.no_update, dash.no_update
 
         except:
-            print("import cancelled")
+            print("Import cancelled")
             raise PreventUpdate
 
     else:
-        print("off-canvas load app is launching")
+        # print("off-canvas load app is launching")
         raise PreventUpdate
 
 
@@ -977,15 +1057,17 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
 def handle_sample_fr_input(value):
     if not value is None:
         if value.isnumeric():
-            print("section 2 sampling frequency")
-            params["sampling_fr"] = [int(value)]
+            # catch the error of numeric + string given at the same time, e.g. 1e
+            try:
+                params["sampling_fr"] = [int(value)]
+            except:
+                return ""
             time.sleep(.1)
             return value
         else:
-            params["sampling_fr"] = ""
+            params["sampling_fr"] = [""]
             return ""
     else:
-        print("sampling frequency app is launching")
         return str(params["sampling_fr"][0])
 
 
@@ -1010,7 +1092,6 @@ def get_channel_user_selection(channels):
         return channels
     else:
         params["selected_channels"] = []
-        print("channel user selection app is launching")
         return params["selected_channels"]
 
 
@@ -1079,11 +1160,6 @@ def storing_to_params(ddowns, mins, maxes):
     params["selected_channel_ddowns"] = ddowns
     params["selected_channel_mins"] = mins
     params["selected_channel_maxes"] = maxes
-
-    # @Nima: below prints show what they return
-    print(params["selected_channel_ddowns"])
-    print(params["selected_channel_mins"])
-    print(params["selected_channel_maxes"])
 
     return dash.no_update
 
@@ -1166,11 +1242,11 @@ def train_indicator(live_slider):
 
             return graph_ai_metric(data=params["AI_accuracy"]), conf_df
         else:
-            print(
-                "Score storage is empty or doesn't satisfy proper epoch number. Training canceled!")
+            # print(
+            #    "Score storage is empty or doesn't satisfy proper epoch number. Training canceled!")
             raise PreventUpdate
     else:
-        print("Train app is launching")
+        # print("Train app is launching")
         raise PreventUpdate
 
 
@@ -1195,17 +1271,17 @@ def save_button(n_clicks):
         #   2. saving in any suitable format
         scoring_results.to_json(os.path.join(save_path, "score_results.json"))
         time.sleep(.1)
-        print("saving scoring labels in .json format")
+        print("Saving scoring labels in .json format...")
 
         scoring_results.to_csv(os.path.join(
             save_path, "score_results.csv"), index=False)
         time.sleep(.1)
-        print("saving scoring labels in .csv format")
-
+        print("Saving scoring labels in .csv format...")
+        print("Saving done!")
         return dash.no_update
     return dash.no_update
 
-# save button (remain)
+# new session button for the next version
 
 
 @ app.callback(
@@ -1214,20 +1290,14 @@ def save_button(n_clicks):
 )
 def new_session(n):
     if 0:
+        global params
         params["port"] = [int(params["port"][0])+n]
-        # first create a folder or make sure the folder exist
-        #save_path = os.getcwd()
-        #os.makedirs(save_path, exist_ok=True)
-
-        # dump params
-        with open(os.path.join(save_path, "project.iscal.pickle"), "wb") as f:
-            pickle.dump(params, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         time.sleep(.1)
         try:
-            os.system('start cmd /k python app.py')
+            subprocess.run("python app.py", shell=True)
         except:
-            os.system('start cmd /k python app.py')
+            pass
         return dash.no_update
     else:
         return dash.no_update
@@ -1245,12 +1315,15 @@ def save_project(n_click):
         save_path = params["result_path"]
         os.makedirs(save_path, exist_ok=True)
 
+        # creating a readable file for next open function
+        params["data_loaded"] = 3
+
         # dump params
         with open(os.path.join(save_path, "project.iscal.pickle"), "wb") as f:
             pickle.dump(params, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         time.sleep(.1)
-        print("project is saved to ISCAL_result folder!")
+        print("Project is saved to ISCAL_result folder")
         return dash.no_update
     return dash.no_update
 
@@ -1258,7 +1331,8 @@ def save_project(n_click):
 # open project
 @ app.callback(
     [Output("open-project", "children"),
-     Input("open-project", "n_clicks")]
+     Output("keyboard", "n_keydowns")],
+    Input("open-project", "n_clicks")
 )
 def open_project(n_click):
     if n_click:
@@ -1268,15 +1342,15 @@ def open_project(n_click):
         # load params
         with open(os.path.join(os.getcwd(), "temp_saves", "filename.txt"), 'rb') as file:
             filename = file.read()
-
+        global params
         with open(filename, 'rb') as file:
             params = pickle.load(file)
 
         time.sleep(.1)
-        print("project is loaded!")
+        print("Project session is retrieved")
 
-        return dash.no_update
-    return dash.no_update
+        return dash.no_update, 1
+    return dash.no_update, dash.no_update
 
 
 # run app if it get called

@@ -208,11 +208,11 @@ def process_input_data(params, start_index, end_index, return_result=False):
     # data = n * n_ch --> traces per channel for that epoch
     # histograms = hist * n_ch --> amplitude histogram per channel
     # spectrums = spectrum * n_ch --> power spectrum of signals
-    print("Running step 1.")
+    print("Running step 1 out of 3")
     my_dict = [{"data": data[i*num_sample_per_epoch: (i + 1) * num_sample_per_epoch],
                 "epoch_index": i} for i in range(num_of_epoch - 1)]
 
-    print("Running step 2.")
+    print("Running step 2 out of 3")
     print("Down sampling in progress...")
     for dict_ in my_dict:
 
@@ -241,7 +241,8 @@ def process_input_data(params, start_index, end_index, return_result=False):
     # start saving all json files
     # bakend --> multiprocessing need more memory but saves
     # 10 times faster than locky backend
-    print("Running step 3.")
+    print("Down sampling done!")
+    print("Running step 3 out of 3")
     Parallel(n_jobs=-1, verbose=5,
              backend="multiprocessing")(delayed(dict_to_json)(path=path_to_save + f"/{i}.json", input_dict=my_dict[i]) for i in range(len(my_dict)))
 
