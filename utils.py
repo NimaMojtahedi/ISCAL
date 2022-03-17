@@ -1,5 +1,6 @@
 # All helper functions are written in this file.
 import numpy as np
+import multiprocessing as mp
 from feature_eng import FeatureEng
 import pdb
 import os
@@ -8,6 +9,7 @@ from json import JSONEncoder
 from joblib import Parallel, delayed
 import pandas as pd
 from sqlalchemy import create_engine
+from mne.filter import filter_data
 
 
 def IO():
@@ -129,12 +131,51 @@ def check_installed_packages():
 
 
 # read large eeg data and chunk it to epochs in the dictionary format
-def process_input_data(path_to_file, path_to_save, start_index, end_index, epoch_len, fr, channel_list, downsample=5, return_result=False):
+def process_input_data(params, start_index, end_index, n_jobs=-1, return_result=False):
 
     # Getting the path and loading data using mne.io.read_raw (it automatically
     # detect file ext.)
+
+    # initializing param
+    path_to_file = params["input_file_path"]
+    path_to_save = params["temp_save_path"]
+    epoch_len = params["epoch_length"][0]
+    fr = params["sampling_fr"][0]
+    all_channels = params["initial_channels"]
+    channel_list = params["selected_channels"]
+    downsample = params["downsample"][0]
+    filter_ddowns = params["selected_channel_ddowns"]
+    min_fr_filters = params["selected_channel_mins"]
+    max_fr_filters = params["selected_channel_maxes"]
+
     print("reading data")
-    info = IO().read_raw(path_to_file)
+    info = IO().read_raw(path_to_file, preload=True)
+
+    # apply filters  if they exist
+    for i, filt_type in enumerate(filter_ddowns):
+        if filt_type == "flt" and (min_fr_filters[i] != "") and (max_fr_filters[i] != ""):
+            info.filter(
+                l_freq=min_fr_filters[i], h_freq=max_fr_filters[i], picks=all_channels[i])
+            info.rename_channels(
+                {all_channels[i]: f"{all_channels[i]}_filtered"})
+
+            replace_index = [qq for qq, ch_name in enumerate(
+                channel_list) if ch_name == all_channels[i]]
+            channel_list[replace_index[0]] = f"{all_channels[i]}_filtered"
+
+        elif filt_type == "bth" and (min_fr_filters[i] != "") and (max_fr_filters[i] != ""):
+            temp_channel = []
+            temp_channel = info.copy().pick_channels([all_channels[i]])
+            temp_channel.rename_channels(
+                {all_channels[i]: f"{all_channels[i]}_filtered"})
+            info.add_channels([temp_channel])
+            info.filter(
+                l_freq=min_fr_filters[i], h_freq=max_fr_filters[i], picks=f"{all_channels[i]}_filtered")
+
+            channel_list.append(f"{all_channels[i]}_filtered")
+
+    # update params
+    params["selected_channels"] = channel_list
 
     # loading data to memory
     if channel_list:
@@ -168,12 +209,12 @@ def process_input_data(path_to_file, path_to_save, start_index, end_index, epoch
     # data = n * n_ch --> traces per channel for that epoch
     # histograms = hist * n_ch --> amplitude histogram per channel
     # spectrums = spectrum * n_ch --> power spectrum of signals
-    print("Running step 1.")
+    print("Running step 1 out of 3")
     my_dict = [{"data": data[i*num_sample_per_epoch: (i + 1) * num_sample_per_epoch],
-                "epoch_index":i} for i in range(num_of_epoch - 1)]
+                "epoch_index": i} for i in range(num_of_epoch - 1)]
 
-    print("Running step 2.")
-    print("Down sampling for presentation!")
+    print("Running step 2 out of 3")
+    print("Down sampling in progress...")
     for dict_ in my_dict:
 
         # get epoch data
@@ -191,7 +232,7 @@ def process_input_data(path_to_file, path_to_save, start_index, end_index, epoch
             spectrums.append(FE.power_spec(keep_f=30))  # at the moment fix 30
 
         # add down sampling (5) after feature eng.
-        temp_data = temp_data[::downsample, :]
+        temp_data = temp_data[:: downsample, :]
 
         # load calculation to dictionary
         dict_.update({"histograms": hists,
@@ -201,8 +242,9 @@ def process_input_data(path_to_file, path_to_save, start_index, end_index, epoch
     # start saving all json files
     # bakend --> multiprocessing need more memory but saves
     # 10 times faster than locky backend
-    print("Running step 3.")
-    Parallel(n_jobs=-1, verbose=5,
+    print("Down sampling done!")
+    print("Running step 3 out of 3")
+    Parallel(n_jobs=n_jobs, verbose=5,
              backend="multiprocessing")(delayed(dict_to_json)(path=path_to_save + f"/{i}.json", input_dict=my_dict[i]) for i in range(len(my_dict)))
 
     # if user ask for return
@@ -295,8 +337,12 @@ def app_defaults():
                      "epoch_length": [10],
                      "sampling_fr": [1000],
                      "initial_channels": None,
-                     "selected_channels": None,
+                     "selected_channels": ['Null Channel'],
                      "selected_channel_indices": [True],
+                     "selected_channel_ddowns": [''],
+                     "selected_channel_mins": [''],
+                     "selected_channel_maxes": [''],
+                     "transition": False,
                      "input_file_info": None,
                      "pressed_key": None,
                      "downsample": [5],
@@ -306,8 +352,12 @@ def app_defaults():
                      "AI_accuracy": [0],
                      "AI_trigger_param": None,
                      "confusion_matrix": None,
-                     "slider_saved_value": None,
-                     "data_loaded":False,
-                     "print": "Loading app!"})
-
+                     "slider_saved_value": [0],
+                     # data_loaded: 0- not loaded, 1-loaded without action, 2-already in use
+                     "data_loaded": 0,
+                     "AI_model": None,
+                     "print": "Loading app!",
+                     "cpu_fullcores": [mp.cpu_count()],
+                     "cpu_compcores": [np.int(np.ceil(mp.cpu_count() * 0.5) if mp.cpu_count() < 5 else np.ceil(mp.cpu_count() * 0.8))],
+                     "port": [8050]})
     return defaults

@@ -130,6 +130,7 @@ dmypy.json
 
 # custom folder
 temp_saves/
+ISCAL_Results/
 
 # custom files
 exp.edf
