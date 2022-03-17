@@ -1334,7 +1334,7 @@ def save_project(n_click):
             pickle.dump(params, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         time.sleep(.1)
-        print("Project is saved to ISCAL_result folder")
+        print("Project is saved to ISCAL_Results folder")
         return dash.no_update
     return dash.no_update
 
@@ -1369,5 +1369,7 @@ if __name__ == '__main__':
     import warnings
     warnings.filterwarnings('ignore')
     from utils import app_defaults
-    app.run_server(debug=False, threaded=True, port=params["port"][0])
+    app.run_server(debug=False, threaded=True,
+    #port=params["port"][0]
+    )
 
