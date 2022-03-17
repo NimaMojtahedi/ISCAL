@@ -1,5 +1,6 @@
 # All helper functions are written in this file.
 import numpy as np
+import multiprocessing as mp
 from feature_eng import FeatureEng
 import pdb
 import os
@@ -130,7 +131,7 @@ def check_installed_packages():
 
 
 # read large eeg data and chunk it to epochs in the dictionary format
-def process_input_data(params, start_index, end_index, return_result=False):
+def process_input_data(params, start_index, end_index, n_jobs=-1, return_result=False):
 
     # Getting the path and loading data using mne.io.read_raw (it automatically
     # detect file ext.)
@@ -243,7 +244,7 @@ def process_input_data(params, start_index, end_index, return_result=False):
     # 10 times faster than locky backend
     print("Down sampling done!")
     print("Running step 3 out of 3")
-    Parallel(n_jobs=-1, verbose=5,
+    Parallel(n_jobs=n_jobs, verbose=5,
              backend="multiprocessing")(delayed(dict_to_json)(path=path_to_save + f"/{i}.json", input_dict=my_dict[i]) for i in range(len(my_dict)))
 
     # if user ask for return
@@ -344,7 +345,7 @@ def app_defaults():
                      "transition": False,
                      "input_file_info": None,
                      "pressed_key": None,
-                     "downsample": [3],
+                     "downsample": [5],
                      "max_possible_epochs": [10000],
                      "scoring_labels": None,
                      "slider_value": [0],
@@ -356,6 +357,7 @@ def app_defaults():
                      "data_loaded": 0,
                      "AI_model": None,
                      "print": "Loading app!",
+                     "cpu_fullcores": [mp.cpu_count()],
+                     "cpu_compcores": [np.int(np.ceil(mp.cpu_count() * 0.5) if mp.cpu_count() < 5 else np.ceil(mp.cpu_count() * 0.8))],
                      "port": [8050]})
-
     return defaults

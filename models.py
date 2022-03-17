@@ -22,7 +22,7 @@ class Classifier:
     import numpy as np
     import pdb
 
-    def __init__(self, Xtrain, ytrain, Xtest, ytest):
+    def __init__(self, Xtrain, ytrain, Xtest, ytest, n_jobs=-1):
 
         # initializing class and feeding train test data and labels
         self.Xtrain = Xtrain
@@ -30,11 +30,14 @@ class Classifier:
         self.Xtest = Xtest
         self.ytest = ytest
 
+        # defining computational cores
+        self.n_jobs = n_jobs
+
     def run_xgboost(self, n_trials=100):
 
         # running xgb classifier and automatically optimizing paramters
         study = self.optuna.create_study(direction="maximize")
-        study.optimize(self.xgb_objective, n_trials=n_trials, timeout=600)
+        study.optimize(self.xgb_objective, n_trials=n_trials, timeout=600, n_jobs=self.n_jobs)
 
         print("Number of finished trials: ", len(study.trials))
         print("Best trial:")
@@ -54,7 +57,7 @@ class Classifier:
     def run_svc(self, n_trials=100):
         # running xgb classifier and automatically optimizing paramters
         study = self.optuna.create_study(direction="maximize")
-        study.optimize(self.svc_objective, n_trials=n_trials, timeout=600)
+        study.optimize(self.svc_objective, n_trials=n_trials, timeout=600, n_jobs=self.n_jobs)
 
         print("Number of finished trials: ", len(study.trials))
         print("Best trial:")
@@ -70,7 +73,7 @@ class Classifier:
     def run_rfc(self, n_trials=100):
         # running xgb classifier and automatically optimizing paramters
         study = self.optuna.create_study(direction="maximize")
-        study.optimize(self.rfc_objective, n_trials=n_trials, timeout=600)
+        study.optimize(self.rfc_objective, n_trials=n_trials, timeout=600, n_jobs=self.n_jobs)
 
         print("Number of finished trials: ", len(study.trials))
         print("Best trial:")
@@ -86,7 +89,7 @@ class Classifier:
     def run_adaBoost(self, n_trials=100):
         # running xgb classifier and automatically optimizing paramters
         study = self.optuna.create_study(direction="maximize")
-        study.optimize(self.ada_objective, n_trials=n_trials, timeout=600)
+        study.optimize(self.ada_objective, n_trials=n_trials, timeout=600, n_jobs=self.n_jobs)
 
         print("Number of finished trials: ", len(study.trials))
         print("Best trial:")
@@ -111,7 +114,7 @@ class Classifier:
             # min_samples_leaf
             "min_samples_leaf": trial.suggest_float("min_samples_leaf", 0.01, 0.5),
             # parallel
-            "n_jobs": -1,
+            "n_jobs": self.n_jobs,
             # class_weight
             "class_weight": trial.suggest_categorical('class_weight', ["balanced", "balanced_subsample"]),
             # complexity paramter
@@ -142,6 +145,8 @@ class Classifier:
             "n_estimators": trial.suggest_int("n_estimators", 10, 1000, 20),
             # learning rate
             "learning_rate": trial.suggest_float("learning_rate", 1e-1, 1e1, log=True),
+            # parallel CHECK
+            "n_jobs": self.n_jobs,
             # algorithm
             "algorithm": trial.suggest_categorical("algorithm", ["SAMME", "SAMME.R"]),
         }
@@ -171,6 +176,8 @@ class Classifier:
             "C": trial.suggest_float("C", 1e-3, 1e4, log=True),
             # kernel type
             "kernel": trial.suggest_categorical("kernel", ["linear", "poly", "rbf", "sigmoid"]),
+            # parallel CHECK
+            "n_jobs": self.n_jobs,
             # degree
             "degree": trial.suggest_int("degree", 2, 7),
             # kernel coefficient
@@ -214,6 +221,8 @@ class Classifier:
             "lambda": trial.suggest_float("lambda", 1e-8, 1.0, log=True),
             # L1 regularization weight.
             "alpha": trial.suggest_float("alpha", 1e-8, 1.0, log=True),
+            # parallel
+            # "nthread": self.n_jobs,
             # sampling ratio for training data.
             "subsample": trial.suggest_float("subsample", 0.2, 1.0),
             # sampling according to each tree.

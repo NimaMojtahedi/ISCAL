@@ -353,12 +353,16 @@ graph_bar = dbc.Nav(dbc.Container(dbc.Row(
             'width': 3200,
             'scale': 1,
         }
-    })
+    },
+    style={"width": "100%", "height": "600px"},)
 ),
-    class_name="fixed-bottom",
-    style={"padding": "25px", "margin-bottom": "300px",
-           "width": "100%", "height": "620px"},
-    fluid=True))
+    class_name="fixed-top",
+    style={"padding-left": "25px", "padding-right": "25px", "margin-top": "150px",
+           "width": "100%", "height": "100%"},
+    fluid=True),
+    style={"margin-top": "0px"},
+    navbar_scroll=True,
+    )
 
 # slidebar
 sliderbar = dbc.Container(children=[
@@ -369,6 +373,8 @@ sliderbar = dbc.Container(children=[
             max=10,
             step=1,
             value=0,
+            marks={},
+            #marks=dict((i, str(i)) if i % 100 != 0 else (i, '') for i in range (params["max_possible_epochs"][0])),
             tooltip={"placement": "top", "always_visible": True}
         )
     )
@@ -433,16 +439,19 @@ def graph_channels(traces, names=['Null Channel'], downsamples=params["downsampl
                           xaxis=dict(fixedrange=True)
                           )
         fig.update_traces(uirevision='whole')
-
-        fig['layout'].update({'yaxis{}'.format(i+1): dict(
-            ticksuffix="       ",
-            anchor="free",
-            automargin=False,
-            position=0.01,
-            ticks='',
-            showgrid=False,
-            uirevision='yaxes',
-            title_text='<b>'+names[i]+'</b>', title_standoff=25)})
+        
+        try:
+            fig['layout'].update({'yaxis{}'.format(i+1): dict(
+                ticksuffix="       ",
+                anchor="free",
+                automargin=False,
+                position=0.01,
+                ticks='',
+                showgrid=False,
+                uirevision='yaxes',
+                title_text='<b>'+names[i]+'</b>', title_standoff=25)})
+        except:
+            pass
 
         fig['layout'].update({'xaxis{}'.format(i+1): dict(tickmode='array',
                                                           tickvals=[int(params['epoch_length'][0])/int(params["downsample"][0]),
@@ -608,7 +617,7 @@ lower_row = dbc.Nav(dbc.Container(children=[
 
     dbc.Container(dbc.Row(
         dbc.Input(placeholder="  Training information", id="train-info", disabled=True, size='sm',
-                  style={"padding": "0", "margin": "0"})),
+                  style={"padding": "0", "margin": "0", 'font-size': 10})),
                   fluid=True,
                   class_name="g-0 mb-0 p-0",
                   style={"margin-top": "0px"}
@@ -987,6 +996,7 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
         max_epoch_nr = process_input_data(params=params,
                                           start_index=0,
                                           end_index=-1,
+                                          n_jobs=params["cpu_compcores"][0],
                                           return_result=False)
         params["max_possible_epochs"] = [max_epoch_nr - 1]
         params["data_loaded"] = 1
@@ -1222,7 +1232,8 @@ def train_indicator(live_slider):
             full_study, best_classifier = Classifier(Xtrain=X_train,
                                                      ytrain=y_train,
                                                      Xtest=X_test,
-                                                     ytest=y_test).run_xgboost(n_trials=20)
+                                                     ytest=y_test,
+                                                     n_jobs=params["cpu_compcores"][0]).run_xgboost(n_trials=20)
             print(
                 f'execution time: {np.rint(time.time() - start_time)} seconds')
             # update AI_model
@@ -1358,4 +1369,5 @@ if __name__ == '__main__':
     import warnings
     warnings.filterwarnings('ignore')
     from utils import app_defaults
-    app.run_server(debug=True, threaded=True, port=params["port"][0])
+    app.run_server(debug=False, threaded=True, port=params["port"][0])
+
