@@ -1370,7 +1370,8 @@ if __name__ == '__main__':
     import warnings
     warnings.filterwarnings('ignore')
     from utils import app_defaults
-    app.run_server(debug=False, threaded=True,
-    #port=params["port"][0]
-    )
+    app.run_server(debug=True)
+    # threaded=True,
+    # port=params["port"][0]
+    
 
