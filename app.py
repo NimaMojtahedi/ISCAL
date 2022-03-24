@@ -5,6 +5,7 @@ from datetime import time
 from ntpath import join
 from re import S
 import socket
+from flask import Flask
 
 import pandas as pd
 import numpy as np
@@ -46,8 +47,12 @@ temp_ISCAL_font = "https://see.fontimg.com/api/renderfont4/q341/eyJyIjoiZnMiLCJo
 
 
 # START THE MAIN APP
+#server = Flask(__name__)
 app = dash.Dash(__name__, external_stylesheets=[
-                dbc.themes.SPACELAB], suppress_callback_exceptions=True)
+                dbc.themes.SPACELAB],
+                #suppress_callback_exceptions=True,
+                #server=server
+                )
 server = app.server
 
 
