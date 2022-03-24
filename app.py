@@ -543,7 +543,7 @@ def graph_conf_mat(y_true, y_pred, class_names):
 # START THE MAIN APP
 app = dash.Dash(__name__, external_stylesheets=[
                 dbc.themes.SPACELAB], suppress_callback_exceptions=True)
-
+server = app.server
 
 # background for the lower row
 backgrd = html.Div(
