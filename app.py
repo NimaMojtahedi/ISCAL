@@ -45,6 +45,12 @@ University_Logo = "https://upload.wikimedia.org/wikipedia/de/9/97/Eberhard_Karls
 temp_ISCAL_font = "https://see.fontimg.com/api/renderfont4/q341/eyJyIjoiZnMiLCJoIjoyMDAsInciOjEwMDAsImZzIjoyMDAsImZnYyI6IiMxMzJFODMiLCJiZ2MiOiIjRkZGRkZGIiwidCI6MX0/SVNDQUw/rapscallion.png"
 
 
+# START THE MAIN APP
+app = dash.Dash(__name__, external_stylesheets=[
+                dbc.themes.SPACELAB], suppress_callback_exceptions=True)
+server = app.server
+
+
 # storage default params
 global params
 params = app_defaults()
@@ -539,11 +545,6 @@ def graph_conf_mat(y_true, y_pred, class_names):
     df = pd.DataFrame(np.round(cm, 2), columns=class_names, index=class_names)
     return dbc.Table.from_dataframe(df, striped=False, bordered=False, hover=True, index=True, responsive=True, size="sm", color="info", style={'color': '#003D7F', 'font-size': 14})
 
-
-# START THE MAIN APP
-app = dash.Dash(__name__, external_stylesheets=[
-                dbc.themes.SPACELAB], suppress_callback_exceptions=True)
-server = app.server
 
 # background for the lower row
 backgrd = html.Div(
