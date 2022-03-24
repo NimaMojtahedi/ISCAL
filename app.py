@@ -47,13 +47,13 @@ temp_ISCAL_font = "https://see.fontimg.com/api/renderfont4/q341/eyJyIjoiZnMiLCJo
 
 
 # START THE MAIN APP
-#server = Flask(__name__)
+server = Flask(__name__)
 app = dash.Dash(__name__, external_stylesheets=[
                 dbc.themes.SPACELAB],
-                #suppress_callback_exceptions=True,
-                #server=server
+                suppress_callback_exceptions=True,
+                server=server
                 )
-server = app.server
+#server = app.server
 
 
 # storage default params
