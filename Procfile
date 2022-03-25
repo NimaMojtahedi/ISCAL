@@ -1,1 +1,1 @@
-web: gunicorn scratch:server
+web: gunicorn app:server
