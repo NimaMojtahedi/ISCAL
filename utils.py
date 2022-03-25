@@ -10,6 +10,7 @@ from joblib import Parallel, delayed
 import pandas as pd
 from sqlalchemy import create_engine
 from mne.filter import filter_data
+UPLOAD_DIRECTORY = "/project/app_uploaded_files"
 
 
 def IO():
@@ -333,7 +334,7 @@ def app_defaults():
     defaults.update({"epoch_index": [None],
                      "input_file_path": None,
                      "result_path": None,
-                     "current_directory": os.getcwd(),
+                     "current_directory": UPLOAD_DIRECTORY,
                      "epoch_length": [10],
                      "sampling_fr": [1000],
                      "initial_channels": None,

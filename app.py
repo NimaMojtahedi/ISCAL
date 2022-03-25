@@ -5,7 +5,9 @@ from datetime import time
 from ntpath import join
 from re import S
 import socket
-from flask import Flask
+from flask import Flask, send_from_directory
+import base64
+from urllib.parse import quote as urlquote
 
 import pandas as pd
 import numpy as np
@@ -40,21 +42,46 @@ import plotly.graph_objs as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-
 # university logo path
 University_Logo = "https://upload.wikimedia.org/wikipedia/de/9/97/Eberhard_Karls_Universit%C3%A4t_T%C3%BCbingen.svg"
 temp_ISCAL_font = "https://see.fontimg.com/api/renderfont4/q341/eyJyIjoiZnMiLCJoIjoyMDAsInciOjEwMDAsImZzIjoyMDAsImZnYyI6IiMxMzJFODMiLCJiZ2MiOiIjRkZGRkZGIiwidCI6MX0/SVNDQUw/rapscallion.png"
+UPLOAD_DIRECTORY = "/project/app_uploaded_files"
 
+if not os.path.exists(UPLOAD_DIRECTORY):
+            os.makedirs(UPLOAD_DIRECTORY)
+
+def save_file(name, content):
+    """Decode and store a file uploaded with Plotly Dash."""
+    data = content.encode("utf8").split(b";base64,")[1]
+    with open(os.path.join(UPLOAD_DIRECTORY, name), "wb") as fp:
+        fp.write(base64.decodebytes(data))
+    os.makedirs(os.path.join(UPLOAD_DIRECTORY, "temp_saves"), exist_ok=True)
+    path = os.path.join(UPLOAD_DIRECTORY, name)
+    with open(os.path.join(UPLOAD_DIRECTORY, "temp_saves", "filename.txt"), "w") as text_file:
+        text_file.write(path)
+    return path
+
+'''def file_download_link(filename):
+    """Create a Plotly Dash 'A' element that downloads a file from the app."""
+    location = "/download/{}".format(urlquote(filename))
+    print('location: ', location)
+    return location'''
 
 # START THE MAIN APP
+server = Flask(__name__)
 app = dash.Dash(__name__, external_stylesheets=[
-                dbc.themes.SPACELAB], suppress_callback_exceptions=True)
-server = app.server
+                dbc.themes.SPACELAB], suppress_callback_exceptions=True, server = server)
+# server = app.server
 
+@server.route("/download/<path:path>")
+def download(path):
+    """Serve a file from the upload directory."""
+    return send_from_directory(UPLOAD_DIRECTORY, path, as_attachment=True)
 
 # storage default params
 global params
 params = app_defaults()
+
 
 # create temp. save folder - this folder needs to be deleted after closing app
 os.makedirs(os.path.join(
@@ -141,8 +168,8 @@ navbar = dbc.NavbarSimple(
                         width="auto"),
                 dbc.Col(html.Div(
                     [
-                        dbc.Button("Import Data",
-                                   id="import-offcanvas-button", size="sm", n_clicks=0),
+                        dcc.Upload(id="upload-data", children = dbc.Button("Import Data",
+                                   id="import-offcanvas-button", size="sm", n_clicks=0)),
                         dbc.Offcanvas(children=[
 
                             html.P(
@@ -989,9 +1016,11 @@ def toggle_adv_param_offcanvas(n, is_open):
     [Input("import-offcanvas-button", "n_clicks"),
      Input("load_button", "n_clicks"),
      Input("second_execution", "children"),
-     Input("internal-trigger", "n_intervals")]
+     Input("internal-trigger", "n_intervals"),
+     Input("upload-data", "filename"),
+     Input("upload-data", "contents")]
 )
-def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
+def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger, uploaded_filenames, uploaded_file_contents):
 
     if secondary == True and self_trigger == 1:
         secondary = False
@@ -1008,6 +1037,7 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
 
     elif n2:
         n2 = n2 - 1
+        print('params:', params)
         channel_children = define_channels(
             channel_name=params["initial_channels"], disabled=True, value=params["selected_channels"],
             dd_value=params["selected_channel_ddowns"], mins_value=params["selected_channel_mins"],
@@ -1016,21 +1046,18 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
         return dash.no_update, channel_children, "Loading...", dash.no_update, True, True, True, 0, 0, secondary, 1, 0
 
     elif n1 != n2:
-        n1 = n1 - 1
+        # n1 = n1 - 1
         print("Browsing for import...")
         # reading only data header and updating Import button configs (path is saved as text file in os.join.path(os.getcwd, "temp_saves") + "filename.txt")
-        subprocess.run("python import_path.py", shell=True)
+        if uploaded_filenames is not None and uploaded_file_contents is not None:
+            filename = save_file(uploaded_filenames, uploaded_file_contents)
+        # subprocess.run("python import_path.py", shell=True)
         try:
-            # read input path from text file already generated
-            with open(os.path.join(params["temp_save_path"], "filename.txt"), 'r') as file:
-                filename = file.read()
-
             # update params
             params["input_file_path"] = filename
 
             # create result path (for later)
-            params["result_path"] = os.path.join(
-                os.path.split(params["temp_save_path"])[0], "ISCAL_Results")
+            params["result_path"] = os.path.join(UPLOAD_DIRECTORY, "ISCAL_Results")
 
             # start reading data header (output of the file is a dataframe)
             data_header = read_data_header(filename)
@@ -1051,6 +1078,7 @@ def toggle_import_load_offcanvas(n1, n2, secondary, self_trigger):
                 maxes_value=params["selected_channel_maxes"], transition=True)
 
             # button canvas, input-data-path, save-path, channel name, save-data-header
+            n1 = n1 -1
             return True, channel_children, "Load", dash.no_update, False, False, False, n1, n2, dash.no_update, dash.no_update, dash.no_update
 
         except:
@@ -1353,7 +1381,7 @@ def open_project(n_click):
         subprocess.run("python import_path.py", shell=True)
 
         # load params
-        with open(os.path.join(os.getcwd(), "temp_saves", "filename.txt"), 'rb') as file:
+        with open(os.path.join(UPLOAD_DIRECTORY, "temp_saves", "filename.txt"), 'rb') as file:
             filename = file.read()
         global params
         with open(filename, 'rb') as file:
@@ -1371,7 +1399,7 @@ if __name__ == '__main__':
     import warnings
     warnings.filterwarnings('ignore')
     from utils import app_defaults
-    app.run_server(debug=False, threaded=True)
+    app.run_server(debug=True, threaded=True)
     # port=params["port"][0]
     
 
